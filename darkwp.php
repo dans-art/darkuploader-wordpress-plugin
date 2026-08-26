@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DarkWP - Image uploader for Darktable
  * Description: Upload images from Darktable directly into the WordPress Media Library or supported Gallery plugins 
- * Version: 0.1
+ * Version: 0.2.0
  * Requires at least: 5.6
  * Tested up to: 7.1
  * 
