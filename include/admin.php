@@ -76,14 +76,6 @@ function field_endpoints()
 
     $galleries = get_supported_galleries(false);
 
-    //Add the Media library checkbox
-    $media_library_checked = ($endpoints_selected['media-library'] ?? false) === '1';
-    printf(
-        '<fieldset><label><input type="checkbox" name="%1$s[endpoints][media-library]" value="1" %2$s /> %3$s</label></fieldset>',
-        esc_attr(DARKUP_SETTINGS_OPTION),
-        checked($media_library_checked, true, false),
-        esc_html__("WordPress Media Library", 'darkup')
-    );
     foreach ($galleries as $key => $gallery) {
         $adapter = $gallery['adapter'];
         $slug = $gallery['slug'];
@@ -97,9 +89,9 @@ function field_endpoints()
         $gallery_checked = ($endpoints_selected[$key] ?? false) === '1';
         $gallery_infos = $adapter::get_plugin_metadata();
         $name = $gallery_infos['name'] ?? $key;
-
-        $disabled = ($active_plugin) ? '' : 'disabled';
-        $hint = ($active_plugin) ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkup'), $name);
+    
+        $disabled = ($active_plugin || $slug !== 'media-library') ? '' : 'disabled';
+        $hint = ($active_plugin || $slug !== 'media-library') ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkup'), $name);
         printf(
             '<fieldset><label><input class="%6$s" type="checkbox" name="%1$s[endpoints][%4$s]" value="1" %6$s %2$s /> %3$s</label><p class="description">%5$s</p></fieldset>',
             esc_attr(DARKUP_SETTINGS_OPTION),
