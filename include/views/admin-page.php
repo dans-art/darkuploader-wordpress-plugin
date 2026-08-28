@@ -11,6 +11,8 @@ if (! defined('ABSPATH')) exit;
 <div class="wrap">
     <h1><?php esc_html_e('DarkUploader', 'darkup'); ?></h1>
 
+    <?php settings_errors(DARKUP_SETTINGS_GROUP); ?>
+
     <nav class="nav-tab-wrapper">
         <?php foreach ($tabs as $tab_slug => $tab_label) :
             $tab_url = add_query_arg(['page' => DARKUP_SLUG, 'tab' => $tab_slug], admin_url('upload.php'));

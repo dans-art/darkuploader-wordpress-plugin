@@ -20,8 +20,10 @@ function get_info(\WP_REST_Request $request)
     $galls = DarkUploaderAdmin\get_supported_galleries();
     $info = [];
     foreach ($galls as $slug => $gallery) {
-        if (empty($gallery['adapter']) || ! \is_plugin_active($gallery['slug'])) {
-            continue;
+        if($slug !== 'media-library'){
+            if (empty($gallery['adapter']) || ! \is_plugin_active($gallery['slug'])) {
+                continue;
+            }
         }
         $adapter = $gallery['adapter'];
         $info[$slug] = $adapter::get_plugin_metadata();
@@ -55,8 +57,10 @@ function upload_media(WP_REST_Request $request)
     $galls = DarkUploaderAdmin\get_supported_galleries();
     $gallery = $galls[$target] ?? null;
 
-    if (! $gallery || empty($gallery['adapter']) || ! \is_plugin_active($gallery['slug'])) {
-        return new WP_Error('invalid_target', esc_html(__('Target gallery not found or not supported.', 'darkup')), ['status' => 400]);
+    if($target !== 'media-library'){
+        if (! $gallery || empty($gallery['adapter']) || !\is_plugin_active($gallery['slug'])) {
+            return new WP_Error('invalid_target', esc_html(__('Target gallery not found or not supported.', 'darkup')), ['status' => 400]);
+        }
     }
 
     $adapter = $gallery['adapter'];
