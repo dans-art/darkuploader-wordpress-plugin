@@ -1,11 +1,9 @@
 <?php
 
-namespace DarkWPRest;
+namespace DarkUploaderRest;
 
 use WP_REST_Response;
-use DarkWPAdmin;
-use DarkWPAdapter\DarkWP_NextGen_Adapter;
-use DarkWPAdapter\DarkWP_MeowGallery_Adapter;
+use DarkUploaderAdmin;
 use WP_Error;
 use WP_REST_Request;
 
@@ -19,24 +17,14 @@ if (! defined('ABSPATH')) exit;
  */
 function get_info(\WP_REST_Request $request)
 {
-    $galls = DarkWPAdmin\get_supported_galleries();
+    $galls = DarkUploaderAdmin\get_supported_galleries();
     $info = [];
-    foreach ($galls as $slug => $path) {
-        if (\is_plugin_active($path)) {
-            switch ($slug) {
-                case 'nextgen-gallery':
-                    $gallery_info = DarkWP_NextGen_Adapter::get_plugin_metadata();
-                    break;
-                case 'meow-gallery':
-                    $gallery_info = DarkWP_MeowGallery_Adapter::get_plugin_metadata();
-                    break;
-
-                default:
-                    $gallery_info = ['slug' => 'invalid', 'name' => __('Invalid Type', 'darkwp')];
-                    break;
-            }
-            $info[$slug] = $gallery_info;
+    foreach ($galls as $slug => $gallery) {
+        if (empty($gallery['adapter']) || ! \is_plugin_active($gallery['slug'])) {
+            continue;
         }
+        $adapter = $gallery['adapter'];
+        $info[$slug] = $adapter::get_plugin_metadata();
     }
     return new WP_REST_Response($info, 200);
 }
@@ -44,7 +32,7 @@ function get_info(\WP_REST_Request $request)
 /**
  * Handles a POST'd image upload and routes it to the requested gallery adapter.
  *
- * The optional X-Darkwp-Batch header lets a client tag several uploads as
+ * The optional X-Darkup-Batch header lets a client tag several uploads as
  * belonging to the same export, so a gallery created for the first image can
  * be reused for the rest. The batch id is passed through to the adapter,
  * which is responsible for scoping any state it keeps per-batch.
@@ -59,20 +47,22 @@ function upload_media(WP_REST_Request $request)
     $file = $files['file'] ?? null;
 
     if (!$file) {
-        return new WP_Error('no_file', esc_html(__('No file uploaded.', 'darkwp')), ['status' => 400]);
+        return new WP_Error('no_file', esc_html(__('No file uploaded.', 'darkup')), ['status' => 400]);
     }
 
-    $batch_id = (string) $request->get_header('X-Darkwp-Batch');
+    $batch_id = (string) $request->get_header('X-Darkup-Batch');
 
-    switch ($target) {
-        case 'nextgen-gallery':
-            $upload_image_response = DarkWP_NextGen_Adapter::upload_image($file, $request->get_params(), $batch_id);
-            if (is_wp_error($upload_image_response)) {
-                return $upload_image_response;
-            }
-            return new WP_REST_Response(esc_html(__('Image uploaded to gallery', 'darkwp')), 200);
+    $galls = DarkUploaderAdmin\get_supported_galleries();
+    $gallery = $galls[$target] ?? null;
 
-        default:
-            return new WP_Error('invalid_target', esc_html(__('Target gallery not found or not supported.', 'darkwp')), ['status' => 400]);
+    if (! $gallery || empty($gallery['adapter']) || ! \is_plugin_active($gallery['slug'])) {
+        return new WP_Error('invalid_target', esc_html(__('Target gallery not found or not supported.', 'darkup')), ['status' => 400]);
     }
+
+    $adapter = $gallery['adapter'];
+    $upload_image_response = $adapter::upload_image($file, $request->get_params(), $batch_id);
+    if (is_wp_error($upload_image_response)) {
+        return $upload_image_response;
+    }
+    return new WP_REST_Response(esc_html(__('Image uploaded to gallery', 'darkup')), 200);
 }

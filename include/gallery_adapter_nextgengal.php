@@ -1,18 +1,19 @@
 <?php
 
-namespace DarkWPAdapter;
-
-use DarkWPAdapter\DarkWP_Gallery_Adapter;
-use WP_Error;
+namespace DarkUploaderAdapter;
 
 if (! defined('ABSPATH')) exit;
+
+use DarkUploaderAdapter\DarkUploader_Gallery_Adapter;
+use WP_Error;
+
 
 /**
  * Adapter that routes uploads into NextGEN Gallery via its own DataMapper/DataStorage API.
  */
-class DarkWP_NextGen_Adapter implements DarkWP_Gallery_Adapter
+class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
 {
-    use DarkWP_Gallery_Adapter_Batch;
+    use DarkUploader_Gallery_Adapter_Batch;
 
 
     /**
@@ -31,27 +32,27 @@ class DarkWP_NextGen_Adapter implements DarkWP_Gallery_Adapter
         $mode_selector = [
             [
                 'value' => 'create',
-                'label' => esc_html(__('Create gallery', 'darkwp')),
+                'label' => esc_html(__('Create gallery', 'darkup')),
             ],
             [
                 'value' => 'add',
-                'label' => esc_html(__('Add to gallery', 'darkwp')),
+                'label' => esc_html(__('Add to gallery', 'darkup')),
             ],
         ];
         $meta = [
             [
                 'id' => 'mode_selector',
-                'label' => esc_html(__('Mode', 'darkwp')),
+                'label' => esc_html(__('Mode', 'darkup')),
                 'type' => 'select',
                 'options' => $mode_selector,
                 'required' => true,
             ],
             [
                 'id' => 'gallery_name',
-                'label' => esc_html(__('Gallery Name', 'darkwp')),
+                'label' => esc_html(__('Gallery Name', 'darkup')),
                 'type' => 'text',
                 'required' => true,
-                'hint' => esc_html(__('Enter the name of the gallery', 'darkwp')),
+                'hint' => esc_html(__('Enter the name of the gallery', 'darkup')),
                 'placeholder' => '$(JOBNAME)',
                 'show_when' => [
                     'field' => 'mode_selector',
@@ -61,10 +62,10 @@ class DarkWP_NextGen_Adapter implements DarkWP_Gallery_Adapter
             ],
             [
                 'id' => 'gallery_id',
-                'label' => esc_html(__('Gallery ID', 'darkwp')),
+                'label' => esc_html(__('Gallery ID', 'darkup')),
                 'type' => 'text',
                 'required' => true,
-                'hint' => esc_html(__('Enter the ID of an existing gallery', 'darkwp')),
+                'hint' => esc_html(__('Enter the ID of an existing gallery', 'darkup')),
                 'placeholder' => '0',
                 'show_when' => [
                     'field' => 'mode_selector',
@@ -74,34 +75,34 @@ class DarkWP_NextGen_Adapter implements DarkWP_Gallery_Adapter
             ],
             [
                 'id' => 'alt_text',
-                'label' => esc_html(__('Alt text', 'darkwp')),
+                'label' => esc_html(__('Alt text', 'darkup')),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Enter the alt text for the image', 'darkwp')),
+                'hint' => esc_html(__('Enter the alt text for the image', 'darkup')),
                 'placeholder' => '$(Xmp.dc.title)',
             ],
             [
                 'id' => 'published',
-                'label' => esc_html(__('Publish photos', 'darkwp')),
+                'label' => esc_html(__('Publish photos', 'darkup')),
                 'type' => 'checkbox',
                 'required' => false,
-                'hint' => esc_html(__('If checked, the photos will be marked as published', 'darkwp')),
+                'hint' => esc_html(__('If checked, the photos will be marked as published', 'darkup')),
                 'default' => true,
             ],
             [
                 'id' => 'description',
-                'label' => esc_html(__('Description', 'darkwp')),
+                'label' => esc_html(__('Description', 'darkup')),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Write a description for the image', 'darkwp')),
+                'hint' => esc_html(__('Write a description for the image', 'darkup')),
                 'placeholder' => '$(Xmp.dc.description)',
             ],
             [
                 'id' => 'tags',
-                'label' => esc_html(__('Tags (comma-separated)', 'darkwp')),
+                'label' => esc_html(__('Tags (comma-separated)', 'darkup')),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Add the tags for the image, comma-separated', 'darkwp')),
+                'hint' => esc_html(__('Add the tags for the image, comma-separated', 'darkup')),
                 'placeholder' => '$(Xmp.dc.subject)',
             ],
         ];
@@ -113,25 +114,25 @@ class DarkWP_NextGen_Adapter implements DarkWP_Gallery_Adapter
     /**
      * Resolves the target gallery (creating or looking one up) and uploads the file into it.
      *
-     * $batch_id (the client's X-Darkwp-Batch header) lets a gallery created for the first
+     * $batch_id (the client's X-Darkup-Batch header) lets a gallery created for the first
      * image of a multi-image export be reused by the rest of that same export.
      *
      * @param array  $file     A single entry from WP_REST_Request::get_file_params(), e.g. ['tmp_name' => ..., 'name' => ...].
      * @param array  $metadata Raw request params, keyed by the field ids from get_plugin_metadata().
-     * @param string $batch_id Client-supplied X-Darkwp-Batch header value, or '' if none was sent.
+     * @param string $batch_id Client-supplied X-Darkup-Batch header value, or '' if none was sent.
      * @return bool|WP_Error
      */
     public static function upload_image($file, array $metadata, string $batch_id = ''): bool|\WP_Error
     {
         if (!class_exists('\Imagely\NGG\DataStorage\Manager')) {
-            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkwp')));
+            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkup')));
         }
 
         //map the metadata, keyed by field id (not the numeric list index)
         $fields_meta = self::get_plugin_metadata()['meta'] ?? false;
         if (!$fields_meta) {
             //This should never happen...
-            return new WP_Error('no_meta_found', esc_html(__('Failed to load the meta fields', 'darkwp')));
+            return new WP_Error('no_meta_found', esc_html(__('Failed to load the meta fields', 'darkup')));
         }
         $values = [];
         foreach ($fields_meta as $field) {
@@ -171,12 +172,12 @@ class DarkWP_NextGen_Adapter implements DarkWP_Gallery_Adapter
             case 'add':
                 $gallery_id = absint($values['gallery_id'] ?? 0);
                 if (!$gallery_id || !\Imagely\NGG\DataMappers\Gallery::get_instance()->find($gallery_id)) {
-                    return new WP_Error('gallery_not_found', esc_html(__('Gallery not found', 'darkwp')));
+                    return new WP_Error('gallery_not_found', esc_html(__('Gallery not found', 'darkup')));
                 }
                 break;
 
             default:
-                return new WP_Error('no_mode_found', esc_html(__('Mode not found or not supported', 'darkwp')));
+                return new WP_Error('no_mode_found', esc_html(__('Mode not found or not supported', 'darkup')));
         }
 
         $image_id = self::add_image_to_gallery($gallery_id, $file, $values);
@@ -196,16 +197,16 @@ class DarkWP_NextGen_Adapter implements DarkWP_Gallery_Adapter
     public static function create_gallery(string $gallery_name, string $description = ""): int|WP_Error
     {
         if (empty($gallery_name)) {
-            return new WP_Error('no_gallery_name_given', esc_html(__('No gallery name given', 'darkwp')));
+            return new WP_Error('no_gallery_name_given', esc_html(__('No gallery name given', 'darkup')));
         }
         if (!class_exists('\Imagely\NGG\DataMappers\Gallery')) {
-            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkwp')));
+            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkup')));
         }
 
         $gallery_mapper = \Imagely\NGG\DataMappers\Gallery::get_instance();
         $gallery = $gallery_mapper->create(['title' => $gallery_name, 'description' => $description]);
         if (!$gallery->save()) {
-            return new WP_Error('ngg_add_gal_error', esc_html(__('Gallery could not get created', 'darkwp')));
+            return new WP_Error('ngg_add_gal_error', esc_html(__('Gallery could not get created', 'darkup')));
         }
         return $gallery->id();
     }
@@ -221,13 +222,13 @@ class DarkWP_NextGen_Adapter implements DarkWP_Gallery_Adapter
     public static function add_image_to_gallery(int $gallery_id, array $file, array $values): int|WP_Error
     {
         if (empty($gallery_id)) {
-            return new WP_Error('no_gallery_id_given', esc_html(__('No gallery ID given', 'darkwp')));
+            return new WP_Error('no_gallery_id_given', esc_html(__('No gallery ID given', 'darkup')));
         }
         if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
-            return new WP_Error('invalid_upload', esc_html(__('Invalid uploaded file', 'darkwp')));
+            return new WP_Error('invalid_upload', esc_html(__('Invalid uploaded file', 'darkup')));
         }
         if (!class_exists('\Imagely\NGG\DataStorage\Manager')) {
-            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkwp')));
+            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkup')));
         }
 
         $storage = \Imagely\NGG\DataStorage\Manager::get_instance();
@@ -258,7 +259,7 @@ class DarkWP_NextGen_Adapter implements DarkWP_Gallery_Adapter
         }
 
         if (!$image_id) {
-            return new WP_Error('ngg_add_image_error', esc_html(__('Failed to upload the image to the gallery', 'darkwp')));
+            return new WP_Error('ngg_add_image_error', esc_html(__('Failed to upload the image to the gallery', 'darkup')));
         }
 
         // import_image_file() only sets alttext from the filename; apply the rest of our fields.
