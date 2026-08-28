@@ -83,15 +83,15 @@ function field_endpoints()
             continue;
         }
 
-        $active_plugin = is_plugin_active($slug);
+        $active_plugin = ($slug === 'media-library') ? true : is_plugin_active($slug);
 
 
         $gallery_checked = ($endpoints_selected[$key] ?? false) === '1';
         $gallery_infos = $adapter::get_plugin_metadata();
         $name = $gallery_infos['name'] ?? $key;
-    
-        $disabled = ($active_plugin || $slug !== 'media-library') ? '' : 'disabled';
-        $hint = ($active_plugin || $slug !== 'media-library') ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkup'), $name);
+
+        $disabled = ($active_plugin) ? '' : 'disabled';
+        $hint = ($active_plugin) ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkup'), $name);
         printf(
             '<fieldset><label><input class="%6$s" type="checkbox" name="%1$s[endpoints][%4$s]" value="1" %6$s %2$s /> %3$s</label><p class="description">%5$s</p></fieldset>',
             esc_attr(DARKUP_SETTINGS_OPTION),
@@ -299,7 +299,7 @@ function get_supported_galleries(bool $only_active = true): array
 
     $all_galleries = [
         'media-library' => [
-            'slug' => 'wordpress-library',
+            'slug' => 'media-library',
             'adapter' => '\DarkUploaderAdapter\DarkUploader_WP_Library_Adapter',
         ],
         'nextgen-gallery' => [
