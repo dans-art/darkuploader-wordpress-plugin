@@ -280,6 +280,9 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
             }
         }
 
+        //Log the event
+        \DarkUploaderLogging\add_log(esc_html__('Image uploaded', 'darkup'), self::get_plugin_metadata()['slug'] ?? 'undefined', null, $image_id);
+
         return $image_id;
     }
 }

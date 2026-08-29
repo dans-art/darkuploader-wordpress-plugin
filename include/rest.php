@@ -70,3 +70,42 @@ function upload_media(WP_REST_Request $request)
     }
     return new WP_REST_Response(esc_html(__('Image uploaded to gallery', 'darkup')), 200);
 }
+
+/**
+ * Returns a page of upload log entries for the History tab's DataViews UI.
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response
+ */
+function get_logs(WP_REST_Request $request)
+{
+    $result = \DarkUploaderLogging\get_all_logs([
+        'search' => $request->get_param('search'),
+        'gallery' => $request->get_param('gallery'),
+        'user_id' => $request->get_param('user_id'),
+        'date' => $request->get_param('date'),
+        'page' => $request->get_param('page'),
+        'per_page' => $request->get_param('per_page'),
+    ]);
+
+    // Resolve user_id -> a display name here rather than in logging.php, since
+    // that's a presentation concern for this REST response, not a storage one.
+    $items = array_map(function ($row) {
+        $user = get_userdata((int) $row['user_id']);
+        return [
+            'id' => (int) $row['id'],
+            'label' => $row['message'],
+            'gallery' => $row['gallery'],
+            'user' => $user ? $user->display_name : '',
+            'image_id' => $row['image_id'],
+            'message_type' => $row['message_type'],
+            'date' => $row['created_at'],
+        ];
+    }, $result['items']);
+
+    return new WP_REST_Response([
+        'items' => $items,
+        'total' => $result['total'],
+        'total_pages' => $result['total_pages'],
+    ], 200);
+}

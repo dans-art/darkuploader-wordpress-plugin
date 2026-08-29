@@ -32,6 +32,12 @@ Currently supported gallery plugin:
 
 == Changelog ==
 
+= 0.3.5 - 2026-08-29 =
+* Added logging database table
+* Added new rest route to get the logs
+* Added backend style
+* Created Statistics and History settings page
+
 = 0.3.0 - 2026-08-26 =
 * Renamed the plugin to DarkUploader with the textdomain darkup
 * Added menu under Media

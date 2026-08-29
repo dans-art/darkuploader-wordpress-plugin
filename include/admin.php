@@ -12,6 +12,13 @@ if (! defined('ABSPATH')) exit;
 function admin_init()
 {
     register_settings();
+
+    //Enqueue the backend style
+    add_action('admin_enqueue_scripts', function ($hook) {
+        if($hook === 'media_page_darkuploader'){
+            wp_enqueue_style('darkwp-admin-style', DARKUP_PLUGIN_DIR_URL . 'dist/css/darkup-admin-style.css', array(), DARKUP_PLUGIN_VERSION);
+        }
+    });
 }
 
 /**
@@ -206,7 +213,7 @@ function sanitize_settings($input)
 }
 
 /**
- * Registers the darkup/v1 REST routes (/info and /media).
+ * Registers the darkup/v1 REST routes (/info, /media, and /logs).
  */
 function register_rest_routes()
 {
@@ -231,6 +238,39 @@ function register_rest_routes()
                 'required' => true,
             ]
         ]
+    ));
+    register_rest_route('darkup/v1', '/logs', array(
+        'methods' => 'GET',
+        'callback' => '\\DarkUploaderRest\get_logs',
+        'permission_callback' => function () {
+            return current_user_can(DARKUP_CAPABILITY);
+        },
+        'args' => [
+            'page' => [
+                'type' => 'integer',
+                'default' => 1,
+            ],
+            'per_page' => [
+                'type' => 'integer',
+                'default' => 20,
+            ],
+            'search' => [
+                'type' => 'string',
+            ],
+            'gallery' => [
+                'validate_callback' => function ($param) {
+                    return is_string($param) && preg_match('/^[a-z0-9_-]+$/', $param) === 1;
+                },
+            ],
+            'user_id' => [
+                'type' => 'integer',
+            ],
+            'date' => [
+                'validate_callback' => function ($param) {
+                    return is_string($param) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $param) === 1;
+                },
+            ],
+        ],
     ));
 }
 
