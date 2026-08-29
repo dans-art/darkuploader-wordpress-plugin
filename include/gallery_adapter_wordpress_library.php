@@ -135,6 +135,18 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
             update_post_meta($attachment_id, '_wp_attachment_image_alt', $values['alt_text']);
         }
 
+        //Log the event. add_log() captures $_POST and the allowlisted request
+        //headers (see LOGGED_HEADERS in logging.php) into postmeta on its own.
+        \DarkUploaderLogging\add_log(
+            sprintf(esc_html__('Image %s uploaded', 'darkup'), $title),
+            self::get_plugin_metadata()['slug'] ?? 'undefined',
+            null,
+            $attachment_id
+        );
+
+        \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
+
+
         return true;
     }
 }

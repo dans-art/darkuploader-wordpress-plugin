@@ -86,6 +86,8 @@ function get_logs(WP_REST_Request $request)
         'date' => $request->get_param('date'),
         'page' => $request->get_param('page'),
         'per_page' => $request->get_param('per_page'),
+        'orderby' => $request->get_param('orderby'),
+        'order' => $request->get_param('order'),
     ]);
 
     // Resolve user_id -> a display name here rather than in logging.php, since
@@ -94,7 +96,7 @@ function get_logs(WP_REST_Request $request)
         $user = get_userdata((int) $row['user_id']);
         return [
             'id' => (int) $row['id'],
-            'label' => $row['message'],
+            'message' => $row['message'],
             'gallery' => $row['gallery'],
             'user' => $user ? $user->display_name : '',
             'image_id' => $row['image_id'],

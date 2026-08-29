@@ -40,10 +40,11 @@ function create_log_table(): void
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
         message VARCHAR(255) NOT NULL,
         message_type VARCHAR(255) DEFAULT NULL,
-        image_id BIGINT DEFAULT NULL,
+        image_id BIGINT UNSIGNED DEFAULT NULL,
         gallery VARCHAR(64) NOT NULL,
         user_id BIGINT UNSIGNED NOT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        postmeta TEXT DEFAULT NULL,
         PRIMARY KEY  (id),
         KEY gallery (gallery),
         KEY user_id (user_id),
@@ -57,11 +58,19 @@ function create_log_table(): void
 }
 
 /**
- * Records one upload as a log entry (setter).
+ * Header names captured into postmeta alongside $_POST.
+ */
+const LOGGED_HEADERS = ['X-Darkup-Batch'];
+
+/**
+ * Records one upload as a log entry (setter). postmeta is captured
+ * automatically from the current request's $_POST fields and the
+ * allowlisted headers in LOGGED_HEADERS — callers don't pass it in.
  *
- * @param string   $message       Human-readable description, e.g. "Uploaded 10 Pictures to gallery Testgallery".
- * @param string   $gallery       Gallery slug the upload went to (matches get_supported_galleries() keys).
- * @param int|null $user_id       Optional. Defaults to the current user.
+ * @param string      $message      Human-readable description, e.g. "Uploaded 10 Pictures to gallery Testgallery".
+ * @param string      $gallery      Gallery slug the upload went to (matches get_supported_galleries() keys).
+ * @param int|null    $user_id      Optional. Defaults to the current user.
+ * @param int|null    $image_id     Optional. Attachment/image id the log entry is about.
  * @param string|null $message_type Optional. The type of message. Can be single | summary
  * @return int|WP_Error Inserted row id, or WP_Error on failure.
  */
@@ -73,17 +82,32 @@ function add_log(string $message, string $gallery, ?int $user_id = null, ?int $i
         return new WP_Error('darkup_log_missing_fields', __('A message and gallery are required to log an upload.', 'darkup'));
     }
 
+    $headers = [];
+    foreach (LOGGED_HEADERS as $header_name) {
+        $server_key = 'HTTP_' . strtoupper(str_replace('-', '_', $header_name));
+        if (isset($_SERVER[$server_key])) {
+            $headers[$header_name] = $_SERVER[$server_key];
+        }
+    }
+
+    // map_deep() sanitizes every scalar leaf of the (possibly nested) array.
+    $postmeta = map_deep([
+        'post' => $_POST,
+        'headers' => $headers,
+    ], 'sanitize_text_field');
+
     $inserted = $wpdb->insert(
         get_log_table_name(),
         [
             'message' => sanitize_text_field($message),
             'gallery' => sanitize_key($gallery),
             'user_id' => $user_id ?? get_current_user_id(),
-            'image_id' => $image_id ?? null,
+            'image_id' => $image_id,
             'message_type' => $message_type !== null ? sanitize_key($message_type) : 'single',
             'created_at' => current_time('mysql'),
+            'postmeta' => wp_json_encode($postmeta),
         ],
-        ['%s', '%s', '%d', '%s', '%s']
+        ['%s', '%s', '%d', '%d', '%s', '%s', '%s']
     );
 
     if ($inserted === false) {
@@ -105,6 +129,8 @@ function add_log(string $message, string $gallery, ?int $user_id = null, ?int $i
  *     @type string $date     Optional. Restrict to entries logged on this Y-m-d day.
  *     @type int    $page     Optional. 1-based page number. Default 1.
  *     @type int    $per_page Optional. Rows per page. Default 20, max 100.
+ *     @type string $orderby  Optional. One of the keys in $sortable_columns below. Default 'date'.
+ *     @type string $order    Optional. 'asc' or 'desc'. Default 'desc'.
  * }
  * @return array{items: array, total: int, total_pages: int}
  */
@@ -139,11 +165,19 @@ function get_all_logs(array $args = []): array
 
     $where_sql = implode(' AND ', $where);
 
+    $sortable_columns = [
+        'message_type' => 'message_type',
+        'gallery' => 'gallery',
+        'date' => 'created_at',
+    ];
+    $orderby_column = $sortable_columns[$args['orderby'] ?? 'date'] ?? 'created_at';
+    $order = (isset($args['order']) && strtolower((string) $args['order']) === 'asc') ? 'ASC' : 'DESC';
+
     $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$where_sql}", $params));
 
     $items_params = array_merge($params, [$per_page, $offset]);
     $items = $wpdb->get_results(
-        $wpdb->prepare("SELECT * FROM {$table} WHERE {$where_sql} ORDER BY created_at DESC LIMIT %d OFFSET %d", $items_params),
+        $wpdb->prepare("SELECT * FROM {$table} WHERE {$where_sql} ORDER BY {$orderby_column} {$order} LIMIT %d OFFSET %d", $items_params),
         ARRAY_A
     );
 
@@ -152,6 +186,36 @@ function get_all_logs(array $args = []): array
         'total' => $total,
         'total_pages' => $per_page > 0 ? (int) ceil($total / $per_page) : 0,
     ];
+}
+
+/**
+ * Increments the plugin-wide upload counters stored in DARKUP_STATISTICS_OPTION
+ * (total, per-gallery, per-user), for the "Statistics" panel of the History tab.
+ *
+ * @param string   $gallery      Gallery slug the upload went to.
+ * @param int      $total_images How many images this call represents. Default 1.
+ * @param int|null $user         Optional. Defaults to the current user.
+ */
+function update_statistic(string $gallery = "", int $total_images = 1, ?int $user = null)
+{
+    $current_stats = (array) get_option(DARKUP_STATISTICS_OPTION, []);
+    $current_stats['total_images_uploaded'] = intval($current_stats['total_images_uploaded'] ?? 0) + $total_images;
+
+    $user_id = $user ?? get_current_user_id();
+    $current_stats['galleries'][$gallery] = intval($current_stats['galleries'][$gallery] ?? 0) + $total_images;
+    $current_stats['by_user'][$user_id] = intval($current_stats['by_user'][$user_id] ?? 0) + $total_images;
+
+    update_option(DARKUP_STATISTICS_OPTION, $current_stats, false);
+}
+
+/**
+ * Retrieves the upload counters recorded by update_statistic()
+ *
+ * @return array{total_images_uploaded?: int, galleries?: array<string,int>, by_user?: array<int,int>}
+ */
+function get_statistics(): array
+{
+    return get_option(DARKUP_STATISTICS_OPTION, []);
 }
 
 /**

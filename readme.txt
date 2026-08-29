@@ -1,10 +1,10 @@
 === DarkUploader - Image uploader for Darktable ===
 Contributors: dansart
 Tags: darktable, gallery, nextgen-gallery, media, uploader
-Requires at least: 5.6
+Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.3.5
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -26,6 +26,8 @@ one creating its own.
 
 Currently supported gallery plugin:
 
+* WordPress Media Library - Upload imaged directly to the media library. With title, alt
+  text, description and caption.
 * NextGEN Gallery — create a new gallery or add to an existing one, with alt
   text, description, tags, and published/hidden state.
 
@@ -37,6 +39,10 @@ Currently supported gallery plugin:
 * Added new rest route to get the logs
 * Added backend style
 * Created Statistics and History settings page
+* Added DataTable to display the logs
+* Added statistics get and update functions
+* Updated rest routes to get the History
+
 
 = 0.3.0 - 2026-08-26 =
 * Renamed the plugin to DarkUploader with the textdomain darkup
