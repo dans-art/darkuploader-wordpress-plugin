@@ -32,34 +32,34 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
         $meta = [
             [
                 'id' => 'title',
-                'label' => esc_html(__('Title', 'darkup')),
+                'label' => esc_html(__('Title', 'darkuploader')),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Enter the title for the image', 'darkup')),
+                'hint' => esc_html(__('Enter the title for the image', 'darkuploader')),
                 'placeholder' => '$(Xmp.dc.title)',
             ],
             [
                 'id' => 'alt_text',
-                'label' => esc_html(__('Alt text', 'darkup')),
+                'label' => esc_html(__('Alt text', 'darkuploader')),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Enter the alt text for the image', 'darkup')),
+                'hint' => esc_html(__('Enter the alt text for the image', 'darkuploader')),
                 'placeholder' => '$(Xmp.dc.title)',
             ],
             [
                 'id' => 'description',
-                'label' => esc_html(__('Description', 'darkup')),
+                'label' => esc_html(__('Description', 'darkuploader')),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Write a description for the image', 'darkup')),
+                'hint' => esc_html(__('Write a description for the image', 'darkuploader')),
                 'placeholder' => '$(Xmp.dc.description)',
             ],
             [
                 'id' => 'caption',
-                'label' => esc_html(__('Caption', 'darkup')),
+                'label' => esc_html(__('Caption', 'darkuploader')),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Add the caption for the image', 'darkup')),
+                'hint' => esc_html(__('Add the caption for the image', 'darkuploader')),
                 'placeholder' => '$(Xmp.dc.subject)',
             ],
         ];
@@ -82,14 +82,14 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
     public static function upload_image($file, array $metadata, string $batch_id = ''): bool|\WP_Error
     {
         if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
-            return new WP_Error('invalid_upload', esc_html(__('Invalid uploaded file', 'darkup')));
+            return new WP_Error('invalid_upload', esc_html(__('Invalid uploaded file', 'darkuploader')));
         }
 
         //map the metadata, keyed by field id
         $fields_meta = self::get_plugin_metadata()['meta'] ?? false;
         if (!$fields_meta) {
             //This should never happen...
-            return new WP_Error('no_meta_found', esc_html(__('Failed to load the meta fields', 'darkup')));
+            return new WP_Error('no_meta_found', esc_html(__('Failed to load the meta fields', 'darkuploader')));
         }
         $values = [];
         foreach ($fields_meta as $field) {
@@ -138,7 +138,7 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
         //Log the event. add_log() captures $_POST and the allowlisted request
         //headers (see LOGGED_HEADERS in logging.php) into postmeta on its own.
         \DarkUploaderLogging\add_log(
-            sprintf(esc_html__('Image %s uploaded', 'darkup'), $title),
+            sprintf(esc_html__('Image %s uploaded', 'darkuploader'), $title),
             self::get_plugin_metadata()['slug'] ?? 'undefined',
             null,
             $attachment_id

@@ -49,14 +49,14 @@ function upload_media(WP_REST_Request $request)
     $file = $files['file'] ?? null;
 
     if (!$file) {
-        return new WP_Error('no_file', esc_html(__('No file uploaded.', 'darkup')), ['status' => 400]);
+        return new WP_Error('no_file', esc_html(__('No file uploaded.', 'darkuploader')), ['status' => 400]);
     }
 
     $max_upload_size = DarkUploaderAdmin\get_max_upload_size();
     if ((int) $file['size'] > $max_upload_size) {
         $message = esc_html(sprintf(
             /* translators: %s: maximum upload size in MB */
-            __('The uploaded file exceeds the maximum allowed size of %s MB.', 'darkup'),
+            __('The uploaded file exceeds the maximum allowed size of %s MB.', 'darkuploader'),
             round($max_upload_size / (1024 * 1024), 2)
         ));
         \DarkUploaderLogging\add_error_log($message, $target);
@@ -74,7 +74,7 @@ function upload_media(WP_REST_Request $request)
 
     if ($target !== 'media-library') {
         if (! $gallery || empty($gallery['adapter']) || !\is_plugin_active($gallery['slug'])) {
-            $message_iv_target = esc_html(__('Target gallery not found or not supported.', 'darkup'));
+            $message_iv_target = esc_html(__('Target gallery not found or not supported.', 'darkuploader'));
             \DarkUploaderLogging\add_error_log($message_iv_target, $target);
             return new WP_Error('invalid_target', $message_iv_target, ['status' => 400]);
         }
@@ -86,7 +86,7 @@ function upload_media(WP_REST_Request $request)
         \DarkUploaderLogging\add_error_log($upload_image_response->get_error_message(), $target);
         return $upload_image_response;
     }
-    return new WP_REST_Response(esc_html(__('Image uploaded to gallery', 'darkup')), 200);
+    return new WP_REST_Response(esc_html(__('Image uploaded to gallery', 'darkuploader')), 200);
 }
 
 /**

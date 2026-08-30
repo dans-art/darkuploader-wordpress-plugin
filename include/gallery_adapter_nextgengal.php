@@ -32,27 +32,27 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
         $mode_selector = [
             [
                 'value' => 'create',
-                'label' => esc_html(__('Create gallery', 'darkup')),
+                'label' => esc_html(__('Create gallery', 'darkuploader')),
             ],
             [
                 'value' => 'add',
-                'label' => esc_html(__('Add to gallery', 'darkup')),
+                'label' => esc_html(__('Add to gallery', 'darkuploader')),
             ],
         ];
         $meta = [
             [
                 'id' => 'mode_selector',
-                'label' => esc_html(__('Mode', 'darkup')),
+                'label' => esc_html(__('Mode', 'darkuploader')),
                 'type' => 'select',
                 'options' => $mode_selector,
                 'required' => true,
             ],
             [
                 'id' => 'gallery_name',
-                'label' => esc_html(__('Gallery Name', 'darkup')),
+                'label' => esc_html(__('Gallery Name', 'darkuploader')),
                 'type' => 'text',
                 'required' => true,
-                'hint' => esc_html(__('Enter the name of the gallery', 'darkup')),
+                'hint' => esc_html(__('Enter the name of the gallery', 'darkuploader')),
                 'placeholder' => '$(JOBNAME)',
                 'show_when' => [
                     'field' => 'mode_selector',
@@ -62,10 +62,10 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
             ],
             [
                 'id' => 'gallery_id',
-                'label' => esc_html(__('Gallery ID', 'darkup')),
+                'label' => esc_html(__('Gallery ID', 'darkuploader')),
                 'type' => 'text',
                 'required' => true,
-                'hint' => esc_html(__('Enter the ID of an existing gallery', 'darkup')),
+                'hint' => esc_html(__('Enter the ID of an existing gallery', 'darkuploader')),
                 'placeholder' => '0',
                 'show_when' => [
                     'field' => 'mode_selector',
@@ -75,34 +75,34 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
             ],
             [
                 'id' => 'alt_text',
-                'label' => esc_html(__('Alt text', 'darkup')),
+                'label' => esc_html(__('Alt text', 'darkuploader')),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Enter the alt text for the image', 'darkup')),
+                'hint' => esc_html(__('Enter the alt text for the image', 'darkuploader')),
                 'placeholder' => '$(Xmp.dc.title)',
             ],
             [
                 'id' => 'published',
-                'label' => esc_html(__('Publish photos', 'darkup')),
+                'label' => esc_html(__('Publish photos', 'darkuploader')),
                 'type' => 'checkbox',
                 'required' => false,
-                'hint' => esc_html(__('If checked, the photos will be marked as published', 'darkup')),
+                'hint' => esc_html(__('If checked, the photos will be marked as published', 'darkuploader')),
                 'default' => true,
             ],
             [
                 'id' => 'description',
-                'label' => esc_html(__('Description', 'darkup')),
+                'label' => esc_html(__('Description', 'darkuploader')),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Write a description for the image', 'darkup')),
+                'hint' => esc_html(__('Write a description for the image', 'darkuploader')),
                 'placeholder' => '$(Xmp.dc.description)',
             ],
             [
                 'id' => 'tags',
-                'label' => esc_html(__('Tags (comma-separated)', 'darkup')),
+                'label' => esc_html(__('Tags (comma-separated)', 'darkuploader')),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Add the tags for the image, comma-separated', 'darkup')),
+                'hint' => esc_html(__('Add the tags for the image, comma-separated', 'darkuploader')),
                 'placeholder' => '$(Xmp.dc.subject)',
             ],
         ];
@@ -125,14 +125,14 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
     public static function upload_image($file, array $metadata, string $batch_id = ''): bool|\WP_Error
     {
         if (!class_exists('\Imagely\NGG\DataStorage\Manager')) {
-            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkup')));
+            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkuploader')));
         }
 
         //map the metadata, keyed by field id (not the numeric list index)
         $fields_meta = self::get_plugin_metadata()['meta'] ?? false;
         if (!$fields_meta) {
             //This should never happen...
-            return new WP_Error('no_meta_found', esc_html(__('Failed to load the meta fields', 'darkup')));
+            return new WP_Error('no_meta_found', esc_html(__('Failed to load the meta fields', 'darkuploader')));
         }
         $values = [];
         foreach ($fields_meta as $field) {
@@ -172,12 +172,12 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
             case 'add':
                 $gallery_id = absint($values['gallery_id'] ?? 0);
                 if (!$gallery_id || !\Imagely\NGG\DataMappers\Gallery::get_instance()->find($gallery_id)) {
-                    return new WP_Error('gallery_not_found', esc_html(__('Gallery not found', 'darkup')));
+                    return new WP_Error('gallery_not_found', esc_html(__('Gallery not found', 'darkuploader')));
                 }
                 break;
 
             default:
-                return new WP_Error('no_mode_found', esc_html(__('Mode not found or not supported', 'darkup')));
+                return new WP_Error('no_mode_found', esc_html(__('Mode not found or not supported', 'darkuploader')));
         }
 
         $image_id = self::add_image_to_gallery($gallery_id, $file, $values);
@@ -197,16 +197,16 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
     public static function create_gallery(string $gallery_name, string $description = ""): int|WP_Error
     {
         if (empty($gallery_name)) {
-            return new WP_Error('no_gallery_name_given', esc_html(__('No gallery name given', 'darkup')));
+            return new WP_Error('no_gallery_name_given', esc_html(__('No gallery name given', 'darkuploader')));
         }
         if (!class_exists('\Imagely\NGG\DataMappers\Gallery')) {
-            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkup')));
+            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkuploader')));
         }
 
         $gallery_mapper = \Imagely\NGG\DataMappers\Gallery::get_instance();
         $gallery = $gallery_mapper->create(['title' => $gallery_name, 'description' => $description]);
         if (!$gallery->save()) {
-            return new WP_Error('ngg_add_gal_error', esc_html(__('Gallery could not get created', 'darkup')));
+            return new WP_Error('ngg_add_gal_error', esc_html(__('Gallery could not get created', 'darkuploader')));
         }
         return $gallery->id();
     }
@@ -222,13 +222,13 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
     public static function add_image_to_gallery(int $gallery_id, array $file, array $values): int|WP_Error
     {
         if (empty($gallery_id)) {
-            return new WP_Error('no_gallery_id_given', esc_html(__('No gallery ID given', 'darkup')));
+            return new WP_Error('no_gallery_id_given', esc_html(__('No gallery ID given', 'darkuploader')));
         }
         if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
-            return new WP_Error('invalid_upload', esc_html(__('Invalid uploaded file', 'darkup')));
+            return new WP_Error('invalid_upload', esc_html(__('Invalid uploaded file', 'darkuploader')));
         }
         if (!class_exists('\Imagely\NGG\DataStorage\Manager')) {
-            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkup')));
+            return new WP_Error('no_ngg', esc_html(__('NextGen Gallery is not active', 'darkuploader')));
         }
 
         $storage = \Imagely\NGG\DataStorage\Manager::get_instance();
@@ -259,7 +259,7 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
         }
 
         if (!$image_id) {
-            return new WP_Error('ngg_add_image_error', esc_html(__('Failed to upload the image to the gallery', 'darkup')));
+            return new WP_Error('ngg_add_image_error', esc_html(__('Failed to upload the image to the gallery', 'darkuploader')));
         }
 
         // import_image_file() only sets alttext from the filename; apply the rest of our fields.
@@ -281,7 +281,7 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
         }
 
         //Log the event
-        \DarkUploaderLogging\add_log(sprintf(esc_html__('Image %s uploaded', 'darkup'), $filename), self::get_plugin_metadata()['slug'] ?? 'undefined', null, $image_id);
+        \DarkUploaderLogging\add_log(sprintf(esc_html__('Image %s uploaded', 'darkuploader'), $filename), self::get_plugin_metadata()['slug'] ?? 'undefined', null, $image_id);
         \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
 
 

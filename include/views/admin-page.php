@@ -9,7 +9,7 @@ if (! defined('ABSPATH')) exit;
 
 ?>
 <div class="wrap">
-    <h1><?php esc_html_e('DarkUploader', 'darkup'); ?></h1>
+    <h1><?php esc_html_e('DarkUploader', 'darkuploader'); ?></h1>
 
     <?php settings_errors(DARKUP_SETTINGS_GROUP); ?>
 

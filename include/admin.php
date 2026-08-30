@@ -77,28 +77,28 @@ function register_settings()
 
     add_settings_section(
         'darkup_general_section',
-        __('General', 'darkup'),
+        __('General', 'darkuploader'),
         '__return_false',
         DARKUP_SLUG . '-general'
     );
 
     add_settings_field(
         'endpoints',
-        __('Supported endpoints', 'darkup'),
+        __('Supported endpoints', 'darkuploader'),
         '\\DarkUploaderAdmin\field_endpoints',
         DARKUP_SLUG . '-general',
         'darkup_general_section'
     );
     add_settings_field(
         'max_upload_size',
-        __('Max Upload Size', 'darkup'),
+        __('Max Upload Size', 'darkuploader'),
         '\\DarkUploaderAdmin\field_max_upload_size',
         DARKUP_SLUG . '-general',
         'darkup_general_section'
     );
     add_settings_field(
         'logs',
-        __('Keep logs for', 'darkup'),
+        __('Keep logs for', 'darkuploader'),
         '\\DarkUploaderAdmin\field_logs',
         DARKUP_SLUG . '-general',
         'darkup_general_section'
@@ -135,7 +135,7 @@ function field_endpoints()
         $name = $gallery_infos['name'] ?? $key;
 
         $disabled = ($active_plugin) ? '' : 'disabled';
-        $hint = ($active_plugin) ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkup'), $name);
+        $hint = ($active_plugin) ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkuploader'), $name);
         printf(
             '<fieldset><label><input class="%6$s" type="checkbox" name="%1$s[endpoints][%4$s]" value="1" %6$s %2$s /> %3$s</label><p class="description">%5$s</p></fieldset>',
             esc_attr(DARKUP_SETTINGS_OPTION),
@@ -178,7 +178,7 @@ function field_max_upload_size()
         esc_attr(DARKUP_SETTINGS_OPTION),
         $setting_name,
         $upload_size_in_kb,
-        esc_html__("Max upload size in KB", 'darkup'),
+        esc_html__("Max upload size in KB", 'darkuploader'),
         esc_html($current_mb . ' MB'),
 
     );
@@ -196,12 +196,12 @@ function field_logs()
     $saved_setting = $settings[$setting_name] ?? '90days';
 
     $options = [
-        '90days' => __('90 days', 'darkup'),
-        '60days' => __('60 days', 'darkup'),
-        '30days' => __('30 days', 'darkup'),
-        '7days' => __('7 days', 'darkup'),
-        'forever' => __('Forever', 'darkup'),
-        'no' => __('No logging (Existing logs will be deleted', 'darkup'),
+        '90days' => __('90 days', 'darkuploader'),
+        '60days' => __('60 days', 'darkuploader'),
+        '30days' => __('30 days', 'darkuploader'),
+        '7days' => __('7 days', 'darkuploader'),
+        'forever' => __('Forever', 'darkuploader'),
+        'no' => __('No logging (Existing logs will be deleted', 'darkuploader'),
     ];
 
     $options_html = array_map(function ($key) use ($options, $saved_setting) {
@@ -220,7 +220,7 @@ function field_logs()
         $setting_name,
         $saved_setting,
         implode('', $options_html),
-        esc_html__('Choose for how long the logs should be kept. Default: 90 days. If set to no logging, existing logs will be deleted.', 'darkup')
+        esc_html__('Choose for how long the logs should be kept. Default: 90 days. If set to no logging, existing logs will be deleted.', 'darkuploader')
     );
 }
 
@@ -346,8 +346,8 @@ function register_menu()
 {
     add_submenu_page(
         'upload.php',
-        __('DarkUploader', 'darkup'),
-        __('DarkUploader', 'darkup'),
+        __('DarkUploader', 'darkuploader'),
+        __('DarkUploader', 'darkuploader'),
         DARKUP_CAPABILITY,
         DARKUP_SLUG,
         '\\DarkUploaderAdmin\render_menu'
@@ -364,9 +364,9 @@ function render_menu()
     if (! current_user_can(DARKUP_CAPABILITY)) return;
 
     $tabs = [
-        'general'   => __('General', 'darkup'),
-        'stats-history' => __('Statistics & History', 'darkup'),
-        'help'  => __('Help', 'darkup'),
+        'general'   => __('General', 'darkuploader'),
+        'stats-history' => __('Statistics & History', 'darkuploader'),
+        'help'  => __('Help', 'darkuploader'),
     ];
 
     $active_tab = (isset($_GET['tab']) && array_key_exists($_GET['tab'], $tabs))

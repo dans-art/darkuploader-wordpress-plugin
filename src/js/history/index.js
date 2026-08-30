@@ -25,7 +25,7 @@ const defaultView = {
 const fields = [
 	{
 		id: 'message',
-		label: __('message', 'darkup'),
+		label: __('message', 'darkuploader'),
 		enableHiding: false,
 		enableSorting: false,
 		/*render: ( { item } ) => (
@@ -43,10 +43,10 @@ const fields = [
 			</div>
 		),*/
 	},
-	{ id: 'message_type', label: __('Message type', 'darkup'), enableSorting: true },
-	{ id: 'gallery', label: __('Gallery', 'darkup'), enableSorting: true },
-	{ id: 'user', label: __('User', 'darkup'), enableSorting: false },
-	{ id: 'date', label: __('Date', 'darkup') },
+	{ id: 'message_type', label: __('Message type', 'darkuploader'), enableSorting: true },
+	{ id: 'gallery', label: __('Gallery', 'darkuploader'), enableSorting: true },
+	{ id: 'user', label: __('User', 'darkuploader'), enableSorting: false },
+	{ id: 'date', label: __('Date', 'darkuploader') },
 ];
 
 function HistoryApp() {

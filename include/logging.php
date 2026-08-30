@@ -79,7 +79,7 @@ function add_log(string $message, string $gallery, ?int $user_id = null, ?int $i
     global $wpdb;
 
     if (empty($message) || empty($gallery)) {
-        return new WP_Error('darkup_log_missing_fields', __('A message and gallery are required to log an upload.', 'darkup'));
+        return new WP_Error('darkup_log_missing_fields', __('A message and gallery are required to log an upload.', 'darkuploader'));
     }
 
     $headers = [];
@@ -111,7 +111,7 @@ function add_log(string $message, string $gallery, ?int $user_id = null, ?int $i
     );
 
     if ($inserted === false) {
-        return new WP_Error('darkup_log_insert_failed', __('Could not write the log entry.', 'darkup'));
+        return new WP_Error('darkup_log_insert_failed', __('Could not write the log entry.', 'darkuploader'));
     }
 
     return (int) $wpdb->insert_id;
@@ -245,7 +245,7 @@ function delete_all_logs()
     add_settings_error(
         DARKUP_SETTINGS_GROUP,
         'darkup_logs_deleted',
-        __('Logs deleted', 'darkup'),
+        __('Logs deleted', 'darkuploader'),
         'info'
     );
 }
@@ -281,7 +281,7 @@ function daily_cron()
     $date_cutoff = strtotime('-' . strval($logging));
     delete_logs($date_cutoff);
     add_log(
-        sprintf(esc_html__('Logs older than %s got deleted', 'darkup'), $logging),
+        sprintf(esc_html__('Logs older than %s got deleted', 'darkuploader'), $logging),
         'none',
         null,
         null,

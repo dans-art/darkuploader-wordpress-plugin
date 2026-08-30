@@ -11,7 +11,7 @@
  * Author: dansart
  * Author URI: https://dans-art.ch
  * 
- * Text Domain: darkup
+ * Text Domain: darkuploader
  * Domain Path: /languages
  * License: GPLv3 or later
  * 
