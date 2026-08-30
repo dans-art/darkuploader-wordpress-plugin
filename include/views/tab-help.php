@@ -21,7 +21,7 @@ if (! defined('ABSPATH')) exit;
             <?php echo esc_html__('⭐⭐⭐⭐⭐', 'darkuploader'); ?>
         </p>
         <p class="align-right">
-            <a href="https://github.com/dans-art/darkwp-wordpress-plugin" class="button button-primary" target="_blank">Review the Plugin</a>
+            <a href="https://github.com/dans-art/darkuploader-wordpress-plugin" class="button button-primary" target="_blank">Review the Plugin</a>
         </p>
     </div>
     <div id="help-misc" class="stat-field stat-field-half">
@@ -30,7 +30,7 @@ if (! defined('ABSPATH')) exit;
             <?php echo esc_html__('Are you having troubles with the plugin or does something not work? Let me know.', 'darkuploader'); ?>
         </p>
         <p>
-            <a href="https://github.com/dans-art/darkwp-wordpress-plugin" class="link" target="_blank"><?php echo esc_html__('DarkUploader WordPress.org support forum', 'darkuploader'); ?></a>
+            <a href="https://github.com/dans-art/darkuploader-wordpress-plugin" class="link" target="_blank"><?php echo esc_html__('DarkUploader WordPress.org support forum', 'darkuploader'); ?></a>
         </p>
         <p>
             <a href="mailto:info@dans-art.ch" class="link" target="_blank"><?php echo esc_html__('Write an email to info@dans-art.ch', 'darkuploader'); ?></a>

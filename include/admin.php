@@ -16,7 +16,7 @@ function admin_init()
     //Enqueue the backend style
     add_action('admin_enqueue_scripts', function ($hook) {
         if ($hook === 'media_page_darkuploader') {
-            wp_enqueue_style('darkwp-admin-style', DARKUP_PLUGIN_DIR_URL . 'dist/css/darkup-admin-style.css', array(), DARKUP_PLUGIN_VERSION);
+            wp_enqueue_style('darkup-admin-style', DARKUP_PLUGIN_DIR_URL . 'dist/css/darkup-admin-style.css', array(), DARKUP_PLUGIN_VERSION);
         }
     });
 
