@@ -1,0 +1,36 @@
+/*
+* DarkUploader backend style
+*/
+:root
+{
+    --darkup-colors-background: #fff;
+    --darkup-border-radius: 10px;
+}
+
+.darkup-statistics,
+.darkup-help
+{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2rem;
+
+    .stat-field
+    {
+        background-color: var(--darkup-colors-background);
+        border-radius: var(--darkup-border-radius);
+        padding: 1rem;
+        box-shadow: 5px 5px 5px #e6e3e3;
+        flex: 1;
+    }
+
+    .stat-field-full
+    {
+        min-width: calc(100% - 2rem);
+    }
+
+    .align-right
+    {
+        text-align: right;
+    }
+}

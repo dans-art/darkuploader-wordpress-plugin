@@ -1,11 +1,9 @@
 <?php
 
-namespace DarkWPRest;
+namespace DarkUploaderRest;
 
 use WP_REST_Response;
-use DarkWPAdmin;
-use DarkWPAdapter\DarkWP_NextGen_Adapter;
-use DarkWPAdapter\DarkWP_MeowGallery_Adapter;
+use DarkUploaderAdmin;
 use WP_Error;
 use WP_REST_Request;
 
@@ -19,24 +17,16 @@ if (! defined('ABSPATH')) exit;
  */
 function get_info(\WP_REST_Request $request)
 {
-    $galls = DarkWPAdmin\get_supported_galleries();
+    $galls = DarkUploaderAdmin\get_supported_galleries();
     $info = [];
-    foreach ($galls as $slug => $path) {
-        if (\is_plugin_active($path)) {
-            switch ($slug) {
-                case 'nextgen-gallery':
-                    $gallery_info = DarkWP_NextGen_Adapter::get_plugin_metadata();
-                    break;
-                case 'meow-gallery':
-                    $gallery_info = DarkWP_MeowGallery_Adapter::get_plugin_metadata();
-                    break;
-
-                default:
-                    $gallery_info = ['slug' => 'invalid', 'name' => __('Invalid Type', 'darkwp')];
-                    break;
+    foreach ($galls as $slug => $gallery) {
+        if ($slug !== 'media-library') {
+            if (empty($gallery['adapter']) || ! \is_plugin_active($gallery['slug'])) {
+                continue;
             }
-            $info[$slug] = $gallery_info;
         }
+        $adapter = $gallery['adapter'];
+        $info[$slug] = $adapter::get_plugin_metadata();
     }
     return new WP_REST_Response($info, 200);
 }
@@ -44,7 +34,7 @@ function get_info(\WP_REST_Request $request)
 /**
  * Handles a POST'd image upload and routes it to the requested gallery adapter.
  *
- * The optional X-Darkwp-Batch header lets a client tag several uploads as
+ * The optional X-Darkup-Batch header lets a client tag several uploads as
  * belonging to the same export, so a gallery created for the first image can
  * be reused for the rest. The batch id is passed through to the adapter,
  * which is responsible for scoping any state it keeps per-batch.
@@ -54,25 +44,88 @@ function get_info(\WP_REST_Request $request)
  */
 function upload_media(WP_REST_Request $request)
 {
-    $target = $request->get_param('target');
+    $target = (string) $request->get_param('target');
     $files = $request->get_file_params();
     $file = $files['file'] ?? null;
 
     if (!$file) {
-        return new WP_Error('no_file', esc_html(__('No file uploaded.', 'darkwp')), ['status' => 400]);
+        return new WP_Error('no_file', esc_html(__('No file uploaded.', 'darkuploader')), ['status' => 400]);
     }
 
-    $batch_id = (string) $request->get_header('X-Darkwp-Batch');
-
-    switch ($target) {
-        case 'nextgen-gallery':
-            $upload_image_response = DarkWP_NextGen_Adapter::upload_image($file, $request->get_params(), $batch_id);
-            if (is_wp_error($upload_image_response)) {
-                return $upload_image_response;
-            }
-            return new WP_REST_Response(esc_html(__('Image uploaded to gallery', 'darkwp')), 200);
-
-        default:
-            return new WP_Error('invalid_target', esc_html(__('Target gallery not found or not supported.', 'darkwp')), ['status' => 400]);
+    $max_upload_size = DarkUploaderAdmin\get_max_upload_size();
+    if ((int) $file['size'] > $max_upload_size) {
+        $message = esc_html(sprintf(
+            /* translators: %s: maximum upload size in MB */
+            __('The uploaded file exceeds the maximum allowed size of %s MB.', 'darkuploader'),
+            round($max_upload_size / (1024 * 1024), 2)
+        ));
+        \DarkUploaderLogging\add_error_log($message, $target);
+        return new WP_Error(
+            'file_too_large',
+            $message,
+            ['status' => 413]
+        );
     }
+
+    $batch_id = (string) $request->get_header('X-Darkup-Batch');
+
+    $galls = DarkUploaderAdmin\get_supported_galleries();
+    $gallery = $galls[$target] ?? null;
+
+    if ($target !== 'media-library') {
+        if (! $gallery || empty($gallery['adapter']) || !\is_plugin_active($gallery['slug'])) {
+            $message_iv_target = esc_html(__('Target gallery not found or not supported.', 'darkuploader'));
+            \DarkUploaderLogging\add_error_log($message_iv_target, $target);
+            return new WP_Error('invalid_target', $message_iv_target, ['status' => 400]);
+        }
+    }
+
+    $adapter = $gallery['adapter'];
+    $upload_image_response = $adapter::upload_image($file, $request->get_params(), $batch_id);
+    if (is_wp_error($upload_image_response)) {
+        \DarkUploaderLogging\add_error_log($upload_image_response->get_error_message(), $target);
+        return $upload_image_response;
+    }
+    return new WP_REST_Response(esc_html(__('Image uploaded to gallery', 'darkuploader')), 200);
+}
+
+/**
+ * Returns a page of upload log entries for the History tab's DataViews UI.
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response
+ */
+function get_logs(WP_REST_Request $request)
+{
+    $result = \DarkUploaderLogging\get_all_logs([
+        'search' => $request->get_param('search'),
+        'gallery' => $request->get_param('gallery'),
+        'user_id' => $request->get_param('user_id'),
+        'date' => $request->get_param('date'),
+        'page' => $request->get_param('page'),
+        'per_page' => $request->get_param('per_page'),
+        'orderby' => $request->get_param('orderby'),
+        'order' => $request->get_param('order'),
+    ]);
+
+    // Resolve user_id -> a display name here rather than in logging.php, since
+    // that's a presentation concern for this REST response, not a storage one.
+    $items = array_map(function ($row) {
+        $user = get_userdata((int) $row['user_id']);
+        return [
+            'id' => (int) $row['id'],
+            'message' => $row['message'],
+            'gallery' => $row['gallery'],
+            'user' => $user ? $user->display_name : '',
+            'image_id' => $row['image_id'],
+            'message_type' => $row['message_type'],
+            'date' => $row['created_at'],
+        ];
+    }, $result['items']);
+
+    return new WP_REST_Response([
+        'items' => $items,
+        'total' => $result['total'],
+        'total_pages' => $result['total_pages'],
+    ], 200);
 }

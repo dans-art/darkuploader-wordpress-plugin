@@ -1,0 +1,15 @@
+{
+  "name": "darkuploader",
+  "private": true,
+  "version": "0.3.0",
+  "scripts": {
+    "build": "wp-scripts build",
+    "start": "wp-scripts start"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "^30.0.0"
+  },
+  "dependencies": {
+    "@wordpress/dataviews": "^18.1.0"
+  }
+}

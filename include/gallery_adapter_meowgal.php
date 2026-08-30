@@ -1,15 +1,15 @@
 <?php
 
-namespace DarkWPAdapter;
-
-use DarkWPAdapter\DarkWP_Gallery_Adapter;
+namespace DarkUploaderAdapter;
 
 if (! defined('ABSPATH')) exit;
+
+use DarkUploaderAdapter\DarkUploader_Gallery_Adapter;
 
 /**
  * Adapter for Meow Gallery. Not implemented yet — upload_image() is a stub.
  */
-class DarkWP_MeowGallery_Adapter implements DarkWP_Gallery_Adapter
+class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
 {
 
     /**
@@ -31,7 +31,7 @@ class DarkWP_MeowGallery_Adapter implements DarkWP_Gallery_Adapter
     /**
      * @param array  $file     A single entry from WP_REST_Request::get_file_params().
      * @param array  $metadata Raw request params, keyed by the field ids from get_plugin_metadata().
-     * @param string $batch_id Client-supplied X-Darkwp-Batch header value, or '' if none was sent.
+     * @param string $batch_id Client-supplied X-Darkup-Batch header value, or '' if none was sent.
      * @return bool|\WP_Error
      * @todo Not implemented — always reports success without uploading anything.
      */
