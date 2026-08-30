@@ -20,7 +20,7 @@ function get_info(\WP_REST_Request $request)
     $galls = DarkUploaderAdmin\get_supported_galleries();
     $info = [];
     foreach ($galls as $slug => $gallery) {
-        if($slug !== 'media-library'){
+        if ($slug !== 'media-library') {
             if (empty($gallery['adapter']) || ! \is_plugin_active($gallery['slug'])) {
                 continue;
             }
@@ -44,7 +44,7 @@ function get_info(\WP_REST_Request $request)
  */
 function upload_media(WP_REST_Request $request)
 {
-    $target = $request->get_param('target');
+    $target = (string) $request->get_param('target');
     $files = $request->get_file_params();
     $file = $files['file'] ?? null;
 
@@ -52,20 +52,38 @@ function upload_media(WP_REST_Request $request)
         return new WP_Error('no_file', esc_html(__('No file uploaded.', 'darkup')), ['status' => 400]);
     }
 
+    $max_upload_size = DarkUploaderAdmin\get_max_upload_size();
+    if ((int) $file['size'] > $max_upload_size) {
+        $message = esc_html(sprintf(
+            /* translators: %s: maximum upload size in MB */
+            __('The uploaded file exceeds the maximum allowed size of %s MB.', 'darkup'),
+            round($max_upload_size / (1024 * 1024), 2)
+        ));
+        \DarkUploaderLogging\add_error_log($message, $target);
+        return new WP_Error(
+            'file_too_large',
+            $message,
+            ['status' => 413]
+        );
+    }
+
     $batch_id = (string) $request->get_header('X-Darkup-Batch');
 
     $galls = DarkUploaderAdmin\get_supported_galleries();
     $gallery = $galls[$target] ?? null;
 
-    if($target !== 'media-library'){
+    if ($target !== 'media-library') {
         if (! $gallery || empty($gallery['adapter']) || !\is_plugin_active($gallery['slug'])) {
-            return new WP_Error('invalid_target', esc_html(__('Target gallery not found or not supported.', 'darkup')), ['status' => 400]);
+            $message_iv_target = esc_html(__('Target gallery not found or not supported.', 'darkup'));
+            \DarkUploaderLogging\add_error_log($message_iv_target, $target);
+            return new WP_Error('invalid_target', $message_iv_target, ['status' => 400]);
         }
     }
 
     $adapter = $gallery['adapter'];
     $upload_image_response = $adapter::upload_image($file, $request->get_params(), $batch_id);
     if (is_wp_error($upload_image_response)) {
+        \DarkUploaderLogging\add_error_log($upload_image_response->get_error_message(), $target);
         return $upload_image_response;
     }
     return new WP_REST_Response(esc_html(__('Image uploaded to gallery', 'darkup')), 200);

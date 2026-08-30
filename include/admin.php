@@ -15,7 +15,7 @@ function admin_init()
 
     //Enqueue the backend style
     add_action('admin_enqueue_scripts', function ($hook) {
-        if($hook === 'media_page_darkuploader'){
+        if ($hook === 'media_page_darkuploader') {
             wp_enqueue_style('darkwp-admin-style', DARKUP_PLUGIN_DIR_URL . 'dist/css/darkup-admin-style.css', array(), DARKUP_PLUGIN_VERSION);
         }
     });
@@ -149,6 +149,17 @@ function field_endpoints()
 }
 
 /**
+ * Returns the configured max upload size in bytes, falling back to
+ * wp_max_upload_size() (PHP's own upload_max_filesize/post_max_size limit)
+ * when the setting hasn't been saved yet.
+ */
+function get_max_upload_size(): int
+{
+    $settings = get_option(DARKUP_SETTINGS_OPTION, []);
+    return (int) ($settings['max_upload_size'] ?? wp_max_upload_size());
+}
+
+/**
  * Renders the "Max Upload Size" settings field. Value is entered/stored as
  * kilobytes on screen but sanitized and persisted in bytes, since that's
  * what wp_max_upload_size() and PHP's own upload_max_filesize deal in.
@@ -157,17 +168,19 @@ function field_endpoints()
  */
 function field_max_upload_size()
 {
-    $settings = get_option(DARKUP_SETTINGS_OPTION, []);
     $setting_name = 'max_upload_size';
-    $saved_setting = $settings[$setting_name] ?? wp_max_upload_size();
-    $upload_size_in_kb = floor(intval($saved_setting) / 1000);
+    $saved_setting = get_max_upload_size();
+    $upload_size_in_kb = floor($saved_setting / 1024);
+    $current_mb = round($saved_setting / (1024 * 1024), 2);
 
     printf(
-        '<fieldset><input type="text" name="%1$s[%2$s]" value="%3$s" /><p class="description">%4$s</p></fieldset>',
+        '<fieldset><input type="text" name="%1$s[%2$s]" value="%3$s" /><p class="description">%4$s (%5$s)</p></fieldset>',
         esc_attr(DARKUP_SETTINGS_OPTION),
         $setting_name,
         $upload_size_in_kb,
-        esc_html__("Max upload size in kb", 'darkup')
+        esc_html__("Max upload size in KB", 'darkup'),
+        esc_html($current_mb . ' MB'),
+
     );
 }
 
@@ -233,7 +246,11 @@ function sanitize_settings($input)
     }
 
     $submitted_kb = isset($input['max_upload_size']) ? max((int) $input['max_upload_size'], 0) : 0;
-    $sanitized['max_upload_size'] = (int) round($submitted_kb * 1000);
+    $sanitized['max_upload_size'] = (int) round($submitted_kb * 1024);
+    //If the upload size is 0, it will reset it to the default php.ini setting
+    if($sanitized['max_upload_size'] === 0){
+        $sanitized['max_upload_size'] = wp_max_upload_size();
+    }
 
     $valid_log_periods = ['90days', '60days', '30days', '7days', 'forever', 'no'];
     $input_log = $input['logs'] ?? '';
@@ -416,4 +433,22 @@ function get_supported_galleries(bool $only_active = true): array
     }
 
     return $all_galleries;
+}
+
+/**
+ * Runs on plugin activation: creates the log table and schedules the
+ * daily cleanup cron.
+ */
+function on_plugin_activation()
+{
+    \DarkUploaderLogging\create_log_table();
+    \DarkUploaderLogging\add_cron();
+}
+
+/**
+ * Runs on plugin deactivation: unschedules the daily cleanup cron.
+ */
+function on_plugin_deactivation()
+{
+    \DarkUploaderLogging\remove_cron();
 }

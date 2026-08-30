@@ -4,7 +4,7 @@ Tags: darktable, gallery, nextgen-gallery, media, uploader
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.5
+Stable tag: 0.4.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -33,6 +33,17 @@ Currently supported gallery plugin:
 
 
 == Changelog ==
+
+= 0.4.0 - 2026-08-30 =
+* All features for the first release version are implemented!
+* Added WP cron hook
+* Added function to create log entries for testing (DEBUG only)
+* Added plugin deactivation function
+* Improved max upload size field
+* Added upload size check
+* Added error logging for failed uploads
+* Added a Help tab with installation and support info
+* Added a "Message type" column to the History table
 
 = 0.3.5 - 2026-08-29 =
 * Added logging database table

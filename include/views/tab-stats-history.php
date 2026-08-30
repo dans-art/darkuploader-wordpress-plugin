@@ -2,6 +2,22 @@
 
 if (! defined('ABSPATH')) exit;
 
+if (defined('WP_DEBUG') and WP_DEBUG === true) {
+    if (
+        isset($_GET['fill_dummy_data'], $_GET['_wpnonce'])
+        && $_GET['fill_dummy_data'] === 'true'
+        && wp_verify_nonce(sanitize_key($_GET['_wpnonce']), 'darkup_fill_dummy_data')
+    ) {
+        \DarkUploaderLogging\add_fake_log();
+    }
+
+    $dummy_data_url = wp_nonce_url(
+        admin_url('upload.php?page=darkuploader&tab=stats-history&fill_dummy_data=true'),
+        'darkup_fill_dummy_data'
+    );
+    echo sprintf('<a href="%s">%s</a>', esc_url($dummy_data_url), esc_html__('Create dummy data', 'darkup'));
+}
+
 $statistics = \DarkUploaderLogging\get_statistics();
 ?>
 <h2><?php esc_html_e('Statistics', 'darkup'); ?></h2>
@@ -9,7 +25,7 @@ $statistics = \DarkUploaderLogging\get_statistics();
     <div id="stat-total" class="stat-field">
         <h3><?php echo esc_html__('Total images uploaded', 'darkup'); ?></h3>
         <p>
-            <?php echo esc_html($statistics['total_images_uploaded'] ?? 0); ?>
+            <?php echo esc_html(number_format_i18n($statistics['total_images_uploaded'] ?? 0)); ?>
         </p>
     </div>
     <div id="stat-uploads-per-target" class="stat-field">
@@ -20,7 +36,7 @@ $statistics = \DarkUploaderLogging\get_statistics();
             $galleries_stats = $statistics['galleries'] ?? [];
             foreach ($galleries as $key => $gall) {
 
-                if(!isset($galleries_stats[$key])){
+                if (!isset($galleries_stats[$key])) {
                     continue;
                 }
                 $adapter = $gall['adapter'] ?? null;
@@ -28,20 +44,21 @@ $statistics = \DarkUploaderLogging\get_statistics();
                 $name = $adapter_meta['name'] ?? 'Undefined';
                 $value = $galleries_stats[$key];
                 echo sprintf('<p class="stat-item">%s: %s</p>', esc_html($name), number_format_i18n($value));
-                }
-                ?>
+            }
+            ?>
         </p>
     </div>
     <div id="stat-uploads-by-user" class="stat-field">
         <h3><?php echo esc_html__('Uploads by user', 'darkup'); ?></h3>
         <p>
             <?php
-                $user_stats = $statistics['by_user'] ?? [];
-                foreach ($user_stats as $user_id => $value) {
-                    $user = get_user_by('ID', $user_id);
-                    $username = $user->display_name ?? 'Unknown';
-                    echo sprintf('<p class="stat-item">%s: %s</p>', esc_html($username), number_format_i18n($value));
-                }
+            $user_stats = $statistics['by_user'] ?? [];
+            arsort($user_stats);
+            foreach ($user_stats as $user_id => $value) {
+                $user = get_user_by('ID', $user_id);
+                $username = $user->display_name ?? 'Unknown';
+                echo sprintf('<p class="stat-item">%s: %s</p>', esc_html($username), number_format_i18n($value));
+            }
             ?>
         </p>
     </div>

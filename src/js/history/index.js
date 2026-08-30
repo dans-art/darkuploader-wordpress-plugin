@@ -19,7 +19,7 @@ const defaultView = {
 	search: '',
 	filters: [],
 	sort: { field: 'date', direction: 'desc' },
-	fields: ['date', 'message', 'gallery', 'user'],
+	fields: ['date', 'message', 'gallery', 'user', 'message_type'],
 };
 
 const fields = [

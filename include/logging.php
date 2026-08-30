@@ -116,6 +116,17 @@ function add_log(string $message, string $gallery, ?int $user_id = null, ?int $i
 
     return (int) $wpdb->insert_id;
 }
+/**
+ * Shorthand for add_log with the message_type 'error'
+ *
+ * @param string      $message      Human-readable description, e.g. "Uploaded 10 Pictures to gallery Testgallery".
+ * @param string      $gallery      Gallery slug the upload went to (matches get_supported_galleries() keys).
+ * @return int|WP_Error Inserted row id, or WP_Error on failure.
+ */
+function add_error_log(string $message, string $gallery)
+{
+    return add_log($message, $gallery, null, null, 'error');
+}
 
 /**
  * Retrieves log entries (getter), with optional search/filtering and pagination.
@@ -237,4 +248,107 @@ function delete_all_logs()
         __('Logs deleted', 'darkup'),
         'info'
     );
+}
+
+/**
+ * Deletes log entries created before the given Unix timestamp.
+ *
+ * @param int $till_timestamp Cutoff; entries older than this are deleted.
+ */
+function delete_logs(int $till_timestamp)
+{
+    global $wpdb;
+    $wpdb->query($wpdb->prepare(
+        'DELETE FROM ' . get_log_table_name() . ' WHERE created_at < FROM_UNIXTIME(%d)',
+        $till_timestamp
+    ));
+}
+
+/**
+ * Cron callback for DARKUP_DAILY_CRON_HOOK. Purges log entries older than
+ * the configured retention period, unless retention is set to 'forever'.
+ */
+function daily_cron()
+{
+    //Get the cron delete option
+    $options = get_option(DARKUP_SETTINGS_OPTION, []);
+    $logging = $options['logs'] ?? null;
+
+    //Check if the logging cleanup should happen
+    if ($logging === null || $logging === 'forever') {
+        return;
+    }
+    $date_cutoff = strtotime('-' . strval($logging));
+    delete_logs($date_cutoff);
+    add_log(
+        sprintf(esc_html__('Logs older than %s got deleted', 'darkup'), $logging),
+        'none',
+        null,
+        null,
+        'system'
+    );
+}
+
+/**
+ * Schedules the daily cleanup cron event, if it isn't already scheduled.
+ * Runs on plugin activation.
+ */
+function add_cron()
+{
+    if (!wp_next_scheduled(DARKUP_DAILY_CRON_HOOK)) {
+        wp_schedule_event(time(), 'daily', DARKUP_DAILY_CRON_HOOK);
+    }
+}
+
+/**
+ * Unschedules the daily cleanup cron event. Runs on plugin deactivation.
+ */
+function remove_cron()
+{
+    $timestamp = wp_next_scheduled(DARKUP_DAILY_CRON_HOOK);
+    wp_unschedule_event($timestamp, DARKUP_DAILY_CRON_HOOK);
+}
+
+/**
+ * Debug helper: inserts 1000 fake log rows (random gallery/user/image,
+ * one per day going back in time) for exercising the Statistics & History
+ * UI. Only reachable when WP_DEBUG is enabled — see tab-stats-history.php.
+ */
+function add_fake_log()
+{
+    global $wpdb;
+
+    $entries = 1000;
+    $entries_done = 0;
+    while ($entries_done < $entries) {
+
+        // map_deep() sanitizes every scalar leaf of the (possibly nested) array.
+        $postmeta = map_deep([
+            'post' => $_POST,
+            'headers' => ['test' => 'only testdata'],
+        ], 'sanitize_text_field');
+
+        $gallery = (rand(1, 2) === 1) ? 'media-library' : 'nextgen-gallery';
+        $message_type = (rand(1, 2) === 1) ? 'single' : 'collection';
+        $image_id = rand(1, 100000);
+        $time = strtotime('-' . $entries_done . 'days');
+        $user_id = rand(1, 5);
+        $inserted = $wpdb->insert(
+            get_log_table_name(),
+            [
+                'message' => sanitize_text_field('I am the test message ' . $entries_done),
+                'gallery' => sanitize_key($gallery),
+                'user_id' => $user_id ?? get_current_user_id(),
+                'image_id' => $image_id,
+                'message_type' => $message_type !== null ? sanitize_key($message_type) : 'single',
+                'created_at' => wp_date('Y-m-d H:i:s', $time),
+                'postmeta' => wp_json_encode($postmeta),
+            ],
+            ['%s', '%s', '%d', '%d', '%s', '%s', '%s']
+        );
+
+        update_statistic($gallery, 1, $user_id);
+        $entries_done++;
+    }
+    echo "Added entries to log: " . $entries_done;
 }
