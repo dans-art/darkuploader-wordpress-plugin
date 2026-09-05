@@ -4,7 +4,7 @@ Tags: darktable, gallery, nextgen-gallery, media, uploader
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -33,6 +33,10 @@ Currently supported gallery plugin:
 
 
 == Changelog ==
+
+= 0.5.0 - 2026-09-05 =
+* Added Meow Gallery support
+* Refactored wordpress library adapter
 
 = 0.4.0 - 2026-08-30 =
 * All features for the first release version are implemented!

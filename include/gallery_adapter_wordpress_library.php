@@ -81,10 +81,6 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
      */
     public static function upload_image($file, array $metadata, string $batch_id = ''): bool|\WP_Error
     {
-        if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
-            return new WP_Error('invalid_upload', esc_html(__('Invalid uploaded file', 'darkuploader')));
-        }
-
         //map the metadata, keyed by field id
         $fields_meta = self::get_plugin_metadata()['meta'] ?? false;
         if (!$fields_meta) {
@@ -95,6 +91,42 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
         foreach ($fields_meta as $field) {
             $raw = $metadata[$field['id']] ?? ($field['default'] ?? '');
             $values[$field['id']] = sanitize_text_field((string) $raw);
+        }
+
+        $attachment_id = self::create_attachment($file, $values);
+        if (is_wp_error($attachment_id)) {
+            return $attachment_id;
+        }
+
+        //Log the event. add_log() captures $_POST and the allowlisted request
+        //headers (see LOGGED_HEADERS in logging.php) into postmeta on its own.
+        \DarkUploaderLogging\add_log(
+            sprintf(esc_html__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id)),
+            self::get_plugin_metadata()['slug'] ?? 'undefined',
+            null,
+            $attachment_id
+        );
+
+        \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
+
+
+        return true;
+    }
+
+    /**
+     * Uploads a file into the Media Library as a standalone attachment, using the same
+     * core pipeline (wp_handle_upload() + wp_insert_attachment() + wp_generate_attachment_metadata())
+     * that wp/v2/media relies on. Shared with other adapters (e.g. Meow Gallery) that need
+     * a plain attachment created before linking it into their own gallery storage.
+     *
+     * @param array $file   A single entry from WP_REST_Request::get_file_params(), e.g. ['tmp_name' => ..., 'name' => ...].
+     * @param array $values Sanitized values, optionally keyed by 'title', 'description', 'caption', 'alt_text'.
+     * @return int|WP_Error The new attachment's ID.
+     */
+    public static function create_attachment(array $file, array $values): int|WP_Error
+    {
+        if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+            return new WP_Error('invalid_upload', esc_html(__('Invalid uploaded file', 'darkuploader')));
         }
 
         // wp_handle_upload()/wp_generate_attachment_metadata() live in wp-admin and
@@ -110,7 +142,7 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
             return new WP_Error('wp_upload_error', esc_html($upload['error']));
         }
 
-        $title = $values['title'] !== '' ? $values['title'] : preg_replace('/\.[^.]+$/', '', basename($upload['file']));
+        $title = ($values['title'] ?? '') !== '' ? $values['title'] : preg_replace('/\.[^.]+$/', '', basename($upload['file']));
 
         $attachment_id = wp_insert_attachment([
             'post_mime_type' => $upload['type'],
@@ -135,18 +167,6 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
             update_post_meta($attachment_id, '_wp_attachment_image_alt', $values['alt_text']);
         }
 
-        //Log the event. add_log() captures $_POST and the allowlisted request
-        //headers (see LOGGED_HEADERS in logging.php) into postmeta on its own.
-        \DarkUploaderLogging\add_log(
-            sprintf(esc_html__('Image %s uploaded', 'darkuploader'), $title),
-            self::get_plugin_metadata()['slug'] ?? 'undefined',
-            null,
-            $attachment_id
-        );
-
-        \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
-
-
-        return true;
+        return $attachment_id;
     }
 }

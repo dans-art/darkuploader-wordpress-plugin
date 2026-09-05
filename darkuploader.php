@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DarkUploader - Image uploader for Darktable
  * Description: Upload images from Darktable directly into the WordPress Media Library or supported Gallery plugins 
- * Version: 0.4.0
+ * Version: 0.5.0
  * Requires at least: 6.6
  * Tested up to: 7.1
  * 
@@ -20,7 +20,7 @@
 namespace DarkUploader;
 
 //Define constants
-define('DARKUP_PLUGIN_VERSION', '0.4.0');
+define('DARKUP_PLUGIN_VERSION', '0.5.0');
 define('DARKUP_PLUGIN_DIR', __DIR__);
 define('DARKUP_PLUGIN_DIR_URL', plugin_dir_url( __FILE__ ));
 
