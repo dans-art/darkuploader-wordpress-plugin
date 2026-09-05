@@ -80,6 +80,11 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
                 'options' => self::get_layout_options(),
                 'required' => false,
                 'hint' => esc_html(__('Choose the layout for the gallery', 'darkuploader')),
+                'show_when' => [
+                    'field' => 'mode_selector',
+                    'compare' => '=',
+                    'value' => 'create',
+                ]
             ],
             [
                 'id' => 'order_by',
@@ -89,6 +94,11 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
                 'required' => false,
                 'hint' => esc_html(__('Choose the sorting for the gallery', 'darkuploader')),
                 'default' => 'none',
+                'show_when' => [
+                    'field' => 'mode_selector',
+                    'compare' => '=',
+                    'value' => 'create',
+                ]
             ],
             [
                 'id' => 'title',
@@ -373,7 +383,7 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
         \Meow_MGL_Migrations::check_db();
         $shortcodes_table = $wpdb->prefix . 'mgl_gallery_shortcodes';
 
-        
+
         $row = $wpdb->get_row($wpdb->prepare("SELECT medias FROM $shortcodes_table WHERE id = %s", $gallery_id), ARRAY_A);
         if ($row === null) {
             return new WP_Error('gallery_not_found', esc_html(__('Gallery not found', 'darkuploader')));
