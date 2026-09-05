@@ -19,6 +19,10 @@
 
 namespace DarkUploader;
 
+use DarkUploaderAdapter\DarkUploader_FooGallery_Adapter;
+use DarkUploaderAdapter\DarkUploader_MeowGallery_Adapter;
+use DarkUploaderAdapter\DarkUploader_NextGen_Adapter;
+
 //Define constants
 define('DARKUP_PLUGIN_VERSION', '0.5.0');
 define('DARKUP_PLUGIN_DIR', __DIR__);
@@ -44,7 +48,11 @@ require_once(DARKUP_PLUGIN_DIR.'/include/logging.php');
 require_once(DARKUP_PLUGIN_DIR.'/include/gallery_adapter.php');
 require_once(DARKUP_PLUGIN_DIR.'/include/gallery_adapter_wordpress_library.php');
 require_once(DARKUP_PLUGIN_DIR.'/include/gallery_adapter_nextgengal.php');
+DarkUploader_NextGen_Adapter::register();
 require_once(DARKUP_PLUGIN_DIR.'/include/gallery_adapter_meowgal.php');
+DarkUploader_MeowGallery_Adapter::register();
+require_once(DARKUP_PLUGIN_DIR.'/include/gallery_adapter_foo_gallery.php');
+DarkUploader_FooGallery_Adapter::register();
 
 register_activation_hook(__FILE__, '\\DarkUploaderAdmin\\on_plugin_activation');
 register_deactivation_hook(__FILE__, '\\DarkUploaderAdmin\\on_plugin_deactivation');

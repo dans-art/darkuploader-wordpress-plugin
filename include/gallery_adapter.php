@@ -9,6 +9,7 @@ if (! defined('ABSPATH')) exit;
  */
 interface DarkUploader_Gallery_Adapter
 {
+
     /**
      * Describes the adapter and the upload-form fields it accepts.
      *

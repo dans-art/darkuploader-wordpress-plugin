@@ -37,6 +37,8 @@ Currently supported gallery plugin:
 = 0.5.0 - 2026-09-05 =
 * Added Meow Gallery support
 * Refactored wordpress library adapter
+* Added filter to dynamically add new adapters
+* Added support for FooGallery
 
 = 0.4.0 - 2026-08-30 =
 * All features for the first release version are implemented!

@@ -248,7 +248,7 @@ function sanitize_settings($input)
     $submitted_kb = isset($input['max_upload_size']) ? max((int) $input['max_upload_size'], 0) : 0;
     $sanitized['max_upload_size'] = (int) round($submitted_kb * 1024);
     //If the upload size is 0, it will reset it to the default php.ini setting
-    if($sanitized['max_upload_size'] === 0){
+    if ($sanitized['max_upload_size'] === 0) {
         $sanitized['max_upload_size'] = wp_max_upload_size();
     }
 
@@ -401,25 +401,14 @@ function get_supported_galleries(bool $only_active = true): array
 
     $endpoints_selected = $settings['endpoints'] ?? [];
 
-    $all_galleries = [
+    $default_galleries = [
         'media-library' => [
             'slug' => 'media-library',
             'adapter' => '\DarkUploaderAdapter\DarkUploader_WP_Library_Adapter',
-        ],
-        'nextgen-gallery' => [
-            'slug' => 'nextgen-gallery/nggallery.php',
-            'adapter' => '\DarkUploaderAdapter\DarkUploader_NextGen_Adapter',
-        ],
-        'meow-gallery' => [
-            'slug' => 'meow-gallery/meow-gallery.php',
-            'adapter' => '\DarkUploaderAdapter\DarkUploader_MeowGallery_Adapter',
-        ],
-        'dummy_gall' => [
-            'slug' => 'meow-gallery/meow-gallery.php',
-            'adapter' => ''
         ]
     ];
-
+    $all_galleries = \apply_filters('darkuploader_supported_galleries', $default_galleries);
+    
     if (!$only_active) {
         return $all_galleries;
     }

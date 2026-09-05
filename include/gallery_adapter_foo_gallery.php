@@ -8,11 +8,11 @@ use DarkUploaderAdapter\DarkUploader_Gallery_Adapter;
 use WP_Error;
 
 /**
- * Adapter that routes uploads into Meow Gallery.
+ * Adapter that routes uploads into FooGallery.
  *
- * It uses the media library adapter to upload the pictures and adds them tho the Meow database
+ * It uses the media library adapter to upload the pictures and adds them tho the FooGallery database
  */
-class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
+class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
 {
     use DarkUploader_Gallery_Adapter_Batch;
 
@@ -24,8 +24,8 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
     public static function register()
     {
         \add_filter('darkuploader_supported_galleries', function ($galleries) {
-            $galleries['meow-gallery'] = [
-                'slug' => 'meow-gallery/meow-gallery.php',
+            $galleries['foo-gallery'] = [
+                'slug' => 'foogallery/foogallery.php',
                 'adapter' => self::class,
             ];
             return $galleries;
@@ -41,8 +41,8 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
     {
         //Basic info
         $info = [
-            'slug' => 'meow-gallery',
-            'name' => 'Meow Gallery',
+            'slug' => 'foo-gallery',
+            'name' => 'FooGallery',
             'meta' => []
         ];
         $mode_selector = [
@@ -162,44 +162,30 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
      */
     private static function get_layout_options(): array
     {
-        $layouts = [
-            'tiles' => esc_html(__('Tiles', 'darkuploader')),
-            'masonry' => esc_html(__('Masonry', 'darkuploader')),
-            'justified' => esc_html(__('Justified', 'darkuploader')),
-            'square' => esc_html(__('Square', 'darkuploader')),
-            'cascade' => esc_html(__('Cascade', 'darkuploader')),
-            'horizontal' => esc_html(__('Horizontal', 'darkuploader')),
-        ];
-        return array_map(function ($value, $label) {
-            return ['value' => $value, 'label' => $label];
-        }, array_keys($layouts), $layouts);
+        if (!function_exists('foogallery_gallery_templates')) {
+            return [['value' => 'default', 'label' => __('Responsive', 'foogallery')]];
+        }
+        //Contains arrays [template_id] => ['slug' =>, 'name' => ]
+        $all_templates = \foogallery_gallery_templates();
+        return array_map(function ($key, $template) {
+            $label = $template['name'] ?? $key;
+            return ['value' => $key, 'label' => $label];
+        }, array_keys($all_templates), $all_templates);
     }
 
     /**
      * Lists the order_by values the 'order_by' form field can offer, in the
      * ['value' => ..., 'label' => ...] shape every other select field here uses.
-     * Values match what Meow Gallery's own admin UI writes to that column (see
-     * app/admin.js) and what Meow_MGL_OrderBy::run() knows how to interpret.
-     *
+     * 
      * @return array
      */
     private static function get_sorting_options(): array
     {
-        // Matches the order_by values Meow Gallery's own admin UI uses (app/admin.js).
-        $sort = [
-            'none' => esc_html(__('None', 'darkuploader')),
-            'random' => esc_html(__('Random', 'darkuploader')),
-            'ids-asc' => esc_html(__('IDs Ascending', 'darkuploader')),
-            'ids-desc' => esc_html(__('IDs Descending', 'darkuploader')),
-            'title-asc' => esc_html(__('Title (Filename) Ascending', 'darkuploader')),
-            'title-desc' => esc_html(__('Title (Filename) Descending', 'darkuploader')),
-            'date-asc' => esc_html(__('Date Ascending', 'darkuploader')),
-            'date-desc' => esc_html(__('Date Descending', 'darkuploader')),
-            'modified-asc' => esc_html(__('Updated Date Ascending', 'darkuploader')),
-            'modified-desc' => esc_html(__('Updated Date Descending', 'darkuploader')),
-            'menu-asc' => esc_html(__('Menu Order Ascending', 'darkuploader')),
-            'menu-desc' => esc_html(__('Menu Order Descending', 'darkuploader')),
-        ];
+        if (!function_exists('foogallery_sorting_options')) {
+            return [['value' => '', 'label' => __('Default', 'foogallery')]];
+        }
+
+        $sort = \foogallery_sorting_options();
         return array_map(function ($value, $label) {
             return ['value' => $value, 'label' => $label];
         }, array_keys($sort), $sort);
@@ -220,8 +206,8 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
      */
     public static function upload_image($file, array $metadata, string $batch_id = ''): bool|\WP_Error
     {
-        if (!class_exists('\Meow_MGL_Core')) {
-            return new WP_Error('no_mgl', esc_html(__('Meow Gallery is not active', 'darkuploader')));
+        if (!function_exists('foogallery_insert_gallery')) {
+            return new WP_Error('no_foo', esc_html(__('FooGallery is not active', 'darkuploader')));
         }
 
         //map the metadata, keyed by field id (not the numeric list index)
@@ -250,7 +236,6 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
             $values['gallery_id'] = $gallery_id_from_batch;
         }
 
-        // Meow Gallery has no storage of its own — every image is a plain Media
         // Library attachment that a gallery row merely references by ID.
         $attachment_id = DarkUploader_WP_Library_Adapter::create_attachment($file, $values);
         if (is_wp_error($attachment_id)) {
@@ -287,161 +272,72 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
     }
 
     /**
-     * Creates a new Meow Gallery shortcode row, seeded with a single image.
+     * Creates a new FooGallery post, seeded with a single image.
      *
      * @param string    $gallery_name
      * @param int       $attachment_id The Media Library attachment to seed the gallery with.
      * @param string    $layout The layout to use
      * @param string    $order_by The sorting for the gallery items
-     * @return string|WP_Error The new gallery's id.
+     * @return int|WP_Error The new gallery's id.
      */
-    public static function create_gallery(string $gallery_name, int $attachment_id, string $layout, string $order_by): string|WP_Error
+    public static function create_gallery(string $gallery_name, int $attachment_id, string $layout, string $order_by): int|WP_Error
     {
         if (empty($gallery_name)) {
             return new WP_Error('no_gallery_name_given', esc_html(__('No gallery name given', 'darkuploader')));
         }
-        if (!class_exists('\Meow_MGL_Migrations')) {
-            return new WP_Error('no_mgl', esc_html(__('Meow Gallery is not active', 'darkuploader')));
+        if (!function_exists('foogallery_insert_gallery')) {
+            return new WP_Error('no_foo', esc_html(__('FooGallery is not active', 'darkuploader')));
         }
 
-        global $wpdb;
-        \Meow_MGL_Migrations::check_db();
-        $shortcodes_table = $wpdb->prefix . 'mgl_gallery_shortcodes';
+        $layout = empty($layout) ? self::get_default_layout() : $layout;
 
-        if (empty($layout)) {
-            $layout = self::get_default_layout();
-        }
+        $gallery_id = \foogallery_insert_gallery(
+            [
+                'title' => $gallery_name,
+                'status' => 'publish',
+                'template' => $layout,
+                'sort' => $order_by,
+                'attachment_ids' => $attachment_id,
 
-        if (empty($order_by)) {
-            $order_by = 'none';
-        }
+            ]
+        );
 
-        $entry = self::build_thumbnail_entry($attachment_id);
-
-        $gallery_id = self::generate_gallery_id();
-        $inserted = $wpdb->insert($shortcodes_table, [
-            'id' => $gallery_id,
-            'name' => $gallery_name,
-            'layout' => $layout,
-            'order_by' => $order_by,
-            'medias' => serialize([
-                'thumbnail_ids' => [$entry['id']],
-                'thumbnail_urls' => [$entry['url']],
-                'thumbnails' => [$entry],
-            ]),
-            'is_post_mode' => 0,
-            'is_hero_mode' => 0,
-            'pref_rank' => 0,
-        ]);
-
-        if (!$inserted) {
-            return new WP_Error('mgl_add_gal_error', esc_html(__('Gallery could not get created', 'darkuploader')));
-        }
-        return $gallery_id;
+        return $gallery_id; //Can be a gallery ID or a WP_Error
     }
 
-    /**
-     * Creates the thunbnail entries for the meow database
-     * 
-     * @param int $attachment_id
-     * @return array{id: string, url: string, zoom_url: string, mime: string}
-     */
-    private static function build_thumbnail_entry(int $attachment_id): array
-    {
-        $fallback_url = (string) wp_get_attachment_url($attachment_id);
-        return [
-            'id' => (string) $attachment_id,
-            'url' => wp_get_attachment_image_url($attachment_id, 'thumbnail') ?: $fallback_url,
-            'zoom_url' => wp_get_attachment_image_url($attachment_id, 'large') ?: $fallback_url,
-            'mime' => (string) get_post_mime_type($attachment_id),
-        ];
-    }
 
     /**
-     * Reads Meow Gallery's own site-wide default layout setting (the 'layout' key
-     * in its mgl_options, see Meow_MGL_Core::list_options()) the same way its own
-     * shortcode-rendering code falls back for a gallery with no explicit layout
-     * (Meow_MGL_Core::gallery(), core.php:412) — falling back to 'tiles' (that
-     * option's own registered default) if the plugin's live instance isn't reachable.
+     * Reads FooGallery's default layout option
      *
      * @return string
      */
     private static function get_default_layout(): string
     {
-        global $wpmgl;
-        if ($wpmgl instanceof \Meow_MGL_Core) {
-            return (string) $wpmgl->get_option('layout', 'tiles');
+        if (!function_exists('foogallery_get_default')) {
+            return 'default';
         }
-        return 'tiles';
+        return \foogallery_get_default('gallery_template');
     }
 
     /**
-     * Links an already-uploaded attachment into an existing Meow Gallery, by
-     * appending it to that gallery's `medias.thumbnail_ids`/`thumbnail_urls`/`thumbnails`
-     * arrays (kept parallel, matching the shape Meow's own admin UI writes — see
-     * build_thumbnail_entry()). Only the `medias` column is touched, so the
-     * gallery's other settings (layout, tags, description, ...) are left untouched.
-     *
+     * Adding images to an existing gallery
+     * 
      * @param string $gallery_id
      * @param int    $attachment_id
-     * @return true|WP_Error
+     * @return array|WP_Error
      */
-    public static function add_image_to_gallery(string $gallery_id, int $attachment_id): bool|WP_Error
+    public static function add_image_to_gallery(string $gallery_id, int $attachment_id): array|WP_Error
     {
         if (empty($gallery_id)) {
             return new WP_Error('no_gallery_id_given', esc_html(__('No gallery ID given', 'darkuploader')));
         }
-        if (!class_exists('\Meow_MGL_Migrations')) {
-            return new WP_Error('no_mgl', esc_html(__('Meow Gallery is not active', 'darkuploader')));
+        if (!function_exists('foogallery_add_gallery_attachments')) {
+            return new WP_Error('no_foo', esc_html(__('FooGallery is not active', 'darkuploader')));
         }
 
-        global $wpdb;
-        \Meow_MGL_Migrations::check_db();
-        $shortcodes_table = $wpdb->prefix . 'mgl_gallery_shortcodes';
+        $gallery_ids = \foogallery_add_gallery_attachments($gallery_id, [$attachment_id]);
 
 
-        $row = $wpdb->get_row($wpdb->prepare("SELECT medias FROM $shortcodes_table WHERE id = %s", $gallery_id), ARRAY_A);
-        if ($row === null) {
-            return new WP_Error('gallery_not_found', esc_html(__('Gallery not found', 'darkuploader')));
-        }
-
-        $medias = maybe_unserialize($row['medias']);
-        if (!is_array($medias)) {
-            $medias = [];
-        }
-        foreach (['thumbnail_ids', 'thumbnail_urls', 'thumbnails'] as $key) {
-            if (empty($medias[$key]) || !is_array($medias[$key])) {
-                $medias[$key] = [];
-            }
-        }
-
-        $entry = self::build_thumbnail_entry($attachment_id);
-        $medias['thumbnail_ids'][] = $entry['id'];
-        $medias['thumbnail_urls'][] = $entry['url'];
-        $medias['thumbnails'][] = $entry;
-
-        $updated = $wpdb->update(
-            $shortcodes_table,
-            ['medias' => serialize($medias)],
-            ['id' => $gallery_id]
-        );
-
-        if ($updated === false) {
-            return new WP_Error('mgl_add_image_error', esc_html(__('Failed to add the image to the gallery', 'darkuploader')));
-        }
-        return true;
-    }
-
-    /**
-     * Generates a gallery id in the same shape as Meow_MGL_Core::generate_uniqid(),
-     * without needing a live instance of that class (its constructor has side
-     * effects like registering hooks and enqueuing admin assets that this adapter
-     * has no business triggering).
-     *
-     * @return string
-     */
-    private static function generate_gallery_id(): string
-    {
-        return substr(wp_unique_id(uniqid()), 0, 20);
+        return $gallery_ids;
     }
 }
