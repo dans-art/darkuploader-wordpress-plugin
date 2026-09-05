@@ -290,13 +290,19 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
             $order_by = 'none';
         }
 
+        $entry = self::build_thumbnail_entry($attachment_id);
+
         $gallery_id = self::generate_gallery_id();
         $inserted = $wpdb->insert($shortcodes_table, [
             'id' => $gallery_id,
             'name' => $gallery_name,
             'layout' => $layout,
             'order_by' => $order_by,
-            'medias' => serialize(['thumbnail_ids' => [$attachment_id]]),
+            'medias' => serialize([
+                'thumbnail_ids' => [$entry['id']],
+                'thumbnail_urls' => [$entry['url']],
+                'thumbnails' => [$entry],
+            ]),
             'is_post_mode' => 0,
             'is_hero_mode' => 0,
             'pref_rank' => 0,
@@ -306,6 +312,23 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
             return new WP_Error('mgl_add_gal_error', esc_html(__('Gallery could not get created', 'darkuploader')));
         }
         return $gallery_id;
+    }
+
+    /**
+     * Creates the thunbnail entries for the meow database
+     * 
+     * @param int $attachment_id
+     * @return array{id: string, url: string, zoom_url: string, mime: string}
+     */
+    private static function build_thumbnail_entry(int $attachment_id): array
+    {
+        $fallback_url = (string) wp_get_attachment_url($attachment_id);
+        return [
+            'id' => (string) $attachment_id,
+            'url' => wp_get_attachment_image_url($attachment_id, 'thumbnail') ?: $fallback_url,
+            'zoom_url' => wp_get_attachment_image_url($attachment_id, 'large') ?: $fallback_url,
+            'mime' => (string) get_post_mime_type($attachment_id),
+        ];
     }
 
     /**
@@ -328,9 +351,10 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
 
     /**
      * Links an already-uploaded attachment into an existing Meow Gallery, by
-     * appending its ID to that gallery's `medias.thumbnail_ids` array. Only the
-     * `medias` column is touched, so the gallery's other settings (layout, tags,
-     * description, ...) are left untouched.
+     * appending it to that gallery's `medias.thumbnail_ids`/`thumbnail_urls`/`thumbnails`
+     * arrays (kept parallel, matching the shape Meow's own admin UI writes — see
+     * build_thumbnail_entry()). Only the `medias` column is touched, so the
+     * gallery's other settings (layout, tags, description, ...) are left untouched.
      *
      * @param string $gallery_id
      * @param int    $attachment_id
@@ -349,7 +373,7 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
         \Meow_MGL_Migrations::check_db();
         $shortcodes_table = $wpdb->prefix . 'mgl_gallery_shortcodes';
 
-
+        
         $row = $wpdb->get_row($wpdb->prepare("SELECT medias FROM $shortcodes_table WHERE id = %s", $gallery_id), ARRAY_A);
         if ($row === null) {
             return new WP_Error('gallery_not_found', esc_html(__('Gallery not found', 'darkuploader')));
@@ -359,11 +383,16 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
         if (!is_array($medias)) {
             $medias = [];
         }
-        if (empty($medias['thumbnail_ids']) || !is_array($medias['thumbnail_ids'])) {
-            $medias['thumbnail_ids'] = [];
+        foreach (['thumbnail_ids', 'thumbnail_urls', 'thumbnails'] as $key) {
+            if (empty($medias[$key]) || !is_array($medias[$key])) {
+                $medias[$key] = [];
+            }
         }
-        $medias['thumbnail_ids'][] = $attachment_id;
-        $medias['thumbnail_ids'] = array_values(array_unique($medias['thumbnail_ids']));
+
+        $entry = self::build_thumbnail_entry($attachment_id);
+        $medias['thumbnail_ids'][] = $entry['id'];
+        $medias['thumbnail_urls'][] = $entry['url'];
+        $medias['thumbnails'][] = $entry;
 
         $updated = $wpdb->update(
             $shortcodes_table,
