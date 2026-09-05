@@ -320,6 +320,7 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
         $entry = self::build_thumbnail_entry($attachment_id);
 
         $gallery_id = self::generate_gallery_id();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Meow Gallery's own table, not a WP core table with a cache group.
         $inserted = $wpdb->insert($shortcodes_table, [
             'id' => $gallery_id,
             'name' => $gallery_name,
@@ -401,7 +402,8 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
         $shortcodes_table = $wpdb->prefix . 'mgl_gallery_shortcodes';
 
 
-        $row = $wpdb->get_row($wpdb->prepare("SELECT medias FROM $shortcodes_table WHERE id = %s", $gallery_id), ARRAY_A);
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- table name only, no user input; Meow Gallery's own table.
+        $row = $wpdb->get_row($wpdb->prepare("SELECT medias FROM " . esc_sql($shortcodes_table) . " WHERE id = %s", $gallery_id), ARRAY_A);
         if ($row === null) {
             return new WP_Error('gallery_not_found', esc_html(__('Gallery not found', 'darkuploader')));
         }
@@ -421,6 +423,7 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
         $medias['thumbnail_urls'][] = $entry['url'];
         $medias['thumbnails'][] = $entry;
 
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Meow Gallery's own table, not a WP core table with a cache group.
         $updated = $wpdb->update(
             $shortcodes_table,
             ['medias' => serialize($medias)],

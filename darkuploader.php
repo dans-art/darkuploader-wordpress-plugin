@@ -19,6 +19,8 @@
 
 namespace DarkUploader;
 
+if (! defined('ABSPATH')) exit;
+
 use DarkUploaderAdapter\DarkUploader_FooGallery_Adapter;
 use DarkUploaderAdapter\DarkUploader_MeowGallery_Adapter;
 use DarkUploaderAdapter\DarkUploader_NextGen_Adapter;

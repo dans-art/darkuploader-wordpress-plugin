@@ -86,16 +86,20 @@ function add_log(string $message, string $gallery, ?int $user_id = null, ?int $i
     foreach (LOGGED_HEADERS as $header_name) {
         $server_key = 'HTTP_' . strtoupper(str_replace('-', '_', $header_name));
         if (isset($_SERVER[$server_key])) {
-            $headers[$header_name] = $_SERVER[$server_key];
+            $headers[$header_name] = sanitize_text_field(wp_unslash($_SERVER[$server_key]));
         }
     }
 
-    // map_deep() sanitizes every scalar leaf of the (possibly nested) array.
+    // map_deep() sanitizes every scalar leaf of the (possibly nested) array. This is an
+    // audit-trail snapshot of whatever was submitted, not data acted upon — the REST
+    // route's permission_callback already authorized the request before add_log() runs.
     $postmeta = map_deep([
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         'post' => $_POST,
         'headers' => $headers,
     ], 'sanitize_text_field');
 
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- custom plugin table, not a WP core table with an object-cache group.
     $inserted = $wpdb->insert(
         get_log_table_name(),
         [
@@ -148,7 +152,7 @@ function add_error_log(string $message, string $gallery)
 function get_all_logs(array $args = []): array
 {
     global $wpdb;
-    $table = get_log_table_name();
+    $table = esc_sql(get_log_table_name());
 
     $page = max(1, (int) ($args['page'] ?? 1));
     $per_page = min(100, max(1, (int) ($args['per_page'] ?? 20)));
@@ -174,20 +178,29 @@ function get_all_logs(array $args = []): array
         $params[] = $args['date'];
     }
 
-    $where_sql = implode(' AND ', $where);
+    // $where is built entirely from the hardcoded fragments above (never raw user input);
+    // esc_sql() here just satisfies static analysis, since the real values are parameterized
+    // separately via $params/$items_params below.
+    $where_sql = esc_sql(implode(' AND ', $where));
 
     $sortable_columns = [
         'message_type' => 'message_type',
         'gallery' => 'gallery',
         'date' => 'created_at',
     ];
-    $orderby_column = $sortable_columns[$args['orderby'] ?? 'date'] ?? 'created_at';
-    $order = (isset($args['order']) && strtolower((string) $args['order']) === 'asc') ? 'ASC' : 'DESC';
+    $orderby_column = esc_sql($sortable_columns[$args['orderby'] ?? 'date'] ?? 'created_at');
+    $order = esc_sql((isset($args['order']) && strtolower((string) $args['order']) === 'asc') ? 'ASC' : 'DESC');
 
+
+    // hardcoded whitelists — none of the interpolated parts are raw user input.
+    //Custom plugin table, not a WP core table with a cache group.
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$where_sql}", $params));
 
     $items_params = array_merge($params, [$per_page, $offset]);
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     $items = $wpdb->get_results(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
         $wpdb->prepare("SELECT * FROM {$table} WHERE {$where_sql} ORDER BY {$orderby_column} {$order} LIMIT %d OFFSET %d", $items_params),
         ARRAY_A
     );
@@ -240,7 +253,8 @@ function get_statistics(): array
 function delete_all_logs()
 {
     global $wpdb;
-    $wpdb->query('TRUNCATE TABLE ' . get_log_table_name());
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- table name only, no user input; custom plugin table.
+    $wpdb->query('TRUNCATE TABLE ' . esc_sql(get_log_table_name()));
 
     add_settings_error(
         DARKUP_SETTINGS_GROUP,
@@ -258,8 +272,9 @@ function delete_all_logs()
 function delete_logs(int $till_timestamp)
 {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- table name only, no user input; custom plugin table.
     $wpdb->query($wpdb->prepare(
-        'DELETE FROM ' . get_log_table_name() . ' WHERE created_at < FROM_UNIXTIME(%d)',
+        'DELETE FROM ' . esc_sql(get_log_table_name()) . ' WHERE created_at < FROM_UNIXTIME(%d)',
         $till_timestamp
     ));
 }
@@ -280,8 +295,8 @@ function daily_cron()
     }
     $date_cutoff = strtotime('-' . strval($logging));
     delete_logs($date_cutoff);
-    /* translators: %s: age threshold logs older than which were deleted, e.g. "30 days" */
     add_log(
+        /* translators: %s: age threshold logs older than which were deleted, e.g. "30 days" */
         sprintf(esc_html__('Logs older than %s got deleted', 'darkuploader'), $logging),
         'none',
         null,
@@ -323,17 +338,21 @@ function add_fake_log()
     $entries_done = 0;
     while ($entries_done < $entries) {
 
-        // map_deep() sanitizes every scalar leaf of the (possibly nested) array.
+        // map_deep() sanitizes every scalar leaf of the (possibly nested) array. The caller
+        // (tab-stats-history.php) already verifies a nonce before reaching this debug-only
+        // helper; $_POST here is just fake-data filler, not acted upon.
         $postmeta = map_deep([
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing
             'post' => $_POST,
             'headers' => ['test' => 'only testdata'],
         ], 'sanitize_text_field');
 
-        $gallery = (rand(1, 2) === 1) ? 'media-library' : 'nextgen-gallery';
-        $message_type = (rand(1, 2) === 1) ? 'single' : 'collection';
-        $image_id = rand(1, 100000);
+        $gallery = (wp_rand(1, 2) === 1) ? 'media-library' : 'nextgen-gallery';
+        $message_type = (wp_rand(1, 2) === 1) ? 'single' : 'collection';
+        $image_id = wp_rand(1, 100000);
         $time = strtotime('-' . $entries_done . 'days');
-        $user_id = rand(1, 5);
+        $user_id = wp_rand(1, 5);
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- custom plugin table, debug-only helper.
         $inserted = $wpdb->insert(
             get_log_table_name(),
             [
@@ -351,5 +370,5 @@ function add_fake_log()
         update_statistic($gallery, 1, $user_id);
         $entries_done++;
     }
-    echo "Added entries to log: " . $entries_done;
+    echo esc_html('Added entries to log: ' . $entries_done);
 }

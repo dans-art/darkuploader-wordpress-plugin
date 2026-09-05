@@ -25,7 +25,9 @@ function admin_init()
         if ($hook !== 'media_page_darkuploader') {
             return;
         }
-        $active_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'general';
+        // Read-only tab navigation, not a state-changing action — no nonce to verify.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'general';
         if ($active_tab !== 'stats-history') {
             return;
         }
@@ -136,15 +138,15 @@ function field_endpoints()
 
         $disabled = ($active_plugin) ? '' : 'disabled';
         /* translators: %s: name of the gallery plugin that is not installed or activated */
-        $hint = ($active_plugin) ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkuploader'), $name);
+        $hint = ($active_plugin) ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkuploader'), esc_html($name));
         printf(
             '<fieldset><label><input class="%6$s" type="checkbox" name="%1$s[endpoints][%4$s]" value="1" %6$s %2$s /> %3$s</label><p class="description">%5$s</p></fieldset>',
             esc_attr(DARKUP_SETTINGS_OPTION),
             checked($gallery_checked, true, false),
             esc_html($name),
             esc_attr($key),
-            $hint,
-            $disabled
+            esc_html($hint),
+            esc_attr($disabled)
         );
     }
 }
@@ -177,8 +179,8 @@ function field_max_upload_size()
     printf(
         '<fieldset><input type="text" name="%1$s[%2$s]" value="%3$s" /><p class="description">%4$s (%5$s)</p></fieldset>',
         esc_attr(DARKUP_SETTINGS_OPTION),
-        $setting_name,
-        $upload_size_in_kb,
+        esc_attr($setting_name),
+        esc_attr($upload_size_in_kb),
         esc_html__("Max upload size in KB", 'darkuploader'),
         esc_html($current_mb . ' MB'),
 
@@ -218,9 +220,9 @@ function field_logs()
         <p class="description">%5$s</p>
         </fieldset>',
         esc_attr(DARKUP_SETTINGS_OPTION),
-        $setting_name,
-        $saved_setting,
-        implode('', $options_html),
+        esc_attr($setting_name),
+        esc_attr($saved_setting),
+        implode('', $options_html), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each <option> is already built with esc_attr()/esc_html() in $options_html above.
         esc_html__('Choose for how long the logs should be kept. Default: 90 days. If set to no logging, existing logs will be deleted.', 'darkuploader')
     );
 }
@@ -370,9 +372,10 @@ function render_menu()
         'help'  => __('Help', 'darkuploader'),
     ];
 
-    $active_tab = (isset($_GET['tab']) && array_key_exists($_GET['tab'], $tabs))
-        ? sanitize_key($_GET['tab'])
-        : 'general';
+    // Read-only tab navigation, not a state-changing action — no nonce to verify.
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    $requested_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : '';
+    $active_tab = array_key_exists($requested_tab, $tabs) ? $requested_tab : 'general';
 
     require DARKUP_PLUGIN_DIR . '/include/views/admin-page.php';
 }

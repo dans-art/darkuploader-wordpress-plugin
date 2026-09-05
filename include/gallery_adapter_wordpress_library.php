@@ -100,8 +100,8 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
 
         //Log the event. add_log() captures $_POST and the allowlisted request
         //headers (see LOGGED_HEADERS in logging.php) into postmeta on its own.
-        /* translators: %s: title of the uploaded image */
         \DarkUploaderLogging\add_log(
+            /* translators: %s: title of the uploaded image */
             sprintf(esc_html__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id)),
             self::get_plugin_metadata()['slug'] ?? 'undefined',
             null,
