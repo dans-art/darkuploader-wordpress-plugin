@@ -6,7 +6,7 @@
  */
 
 if (! defined('ABSPATH')) exit;
-(function () {
+(function () use ($tabs, $active_tab) {
 ?>
     <div class="wrap">
         <h1><?php esc_html_e('DarkUploader', 'darkuploader'); ?></h1>

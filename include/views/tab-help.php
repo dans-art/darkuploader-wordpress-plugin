@@ -38,5 +38,5 @@ if (! defined('ABSPATH')) exit;
         </div>
     </div>
 <?php
-});
+})();
 ?>

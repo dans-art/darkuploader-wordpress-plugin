@@ -20,7 +20,7 @@ if (! defined('ABSPATH')) exit;
     }
 
     $statistics = \DarkUploaderLogging\get_statistics();
-    ?>
+?>
     <h2><?php esc_html_e('Statistics', 'darkuploader'); ?></h2>
     <div class="darkup-statistics">
         <div id="stat-total" class="stat-field">
@@ -35,6 +35,9 @@ if (! defined('ABSPATH')) exit;
                 <?php
                 $galleries = \DarkUploaderAdmin\get_supported_galleries(false);
                 $galleries_stats = $statistics['galleries'] ?? [];
+                if (count($galleries_stats) === 0) {
+                    echo esc_html__("No statistics available. Upload some images and see the numbers rising", "darkuploader");
+                }
                 foreach ($galleries as $key => $gall) {
 
                     if (!isset($galleries_stats[$key])) {
@@ -55,6 +58,9 @@ if (! defined('ABSPATH')) exit;
                 <?php
                 $user_stats = $statistics['by_user'] ?? [];
                 arsort($user_stats);
+                if (count($user_stats) === 0) {
+                    echo esc_html__("No user statistics available. Upload some images and see the numbers rising", "darkuploader");
+                }
                 foreach ($user_stats as $user_id => $value) {
                     $user = get_user_by('ID', $user_id);
                     $username = $user->display_name ?? 'Unknown';
@@ -74,5 +80,5 @@ if (! defined('ABSPATH')) exit;
             </p>
         <?php endif; ?>
     </div>
-    <?php
+<?php
 })();
