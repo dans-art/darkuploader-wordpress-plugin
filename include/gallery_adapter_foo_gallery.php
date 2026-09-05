@@ -163,7 +163,7 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
     private static function get_layout_options(): array
     {
         if (!function_exists('foogallery_gallery_templates')) {
-            return [['value' => 'default', 'label' => __('Responsive', 'foogallery')]];
+            return [['value' => 'default', 'label' => __('Responsive', 'darkuploader')]];
         }
         //Contains arrays [template_id] => ['slug' =>, 'name' => ]
         $all_templates = \foogallery_gallery_templates();
@@ -182,7 +182,7 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
     private static function get_sorting_options(): array
     {
         if (!function_exists('foogallery_sorting_options')) {
-            return [['value' => '', 'label' => __('Default', 'foogallery')]];
+            return [['value' => '', 'label' => __('Default', 'darkuploader')]];
         }
 
         $sort = \foogallery_sorting_options();
@@ -193,7 +193,7 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
 
     /**
      * Uploads the file as a Media Library attachment, then links it into the
-     * target Meow Gallery (creating or looking one up).
+     * target FooGallery (creating or looking one up).
      *
      * $batch_id (the client's X-Darkup-Batch header) lets a gallery created for
      * the first image of a multi-image export be reused by the rest of that
@@ -264,7 +264,14 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
                 return new WP_Error('no_mode_found', esc_html(__('Mode not found or not supported', 'darkuploader')));
         }
 
+        //Add the post to the attachment
+        wp_update_post([
+            'ID' => $attachment_id,
+            'post_parent' => (int) $gallery_id,
+        ]);
+
         //Log the event
+        /* translators: %s: title of the uploaded image */
         \DarkUploaderLogging\add_log(sprintf(esc_html__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id)), self::get_plugin_metadata()['slug'] ?? 'undefined', null, $attachment_id);
         \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
 
@@ -302,7 +309,11 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
             ]
         );
 
-        return $gallery_id; //Can be a gallery ID or a WP_Error
+        if (is_wp_error($gallery_id)) {
+            return $gallery_id;
+        }
+
+        return (int) $gallery_id;
     }
 
 
@@ -324,9 +335,9 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
      * 
      * @param string $gallery_id
      * @param int    $attachment_id
-     * @return array|WP_Error
+     * @return int|WP_Error
      */
-    public static function add_image_to_gallery(string $gallery_id, int $attachment_id): array|WP_Error
+    public static function add_image_to_gallery(string $gallery_id, int $attachment_id): int|WP_Error
     {
         if (empty($gallery_id)) {
             return new WP_Error('no_gallery_id_given', esc_html(__('No gallery ID given', 'darkuploader')));
@@ -338,6 +349,6 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
         $gallery_ids = \foogallery_add_gallery_attachments($gallery_id, [$attachment_id]);
 
 
-        return $gallery_ids;
+        return is_array($gallery_ids) ? (int) reset($gallery_ids) : (int) $gallery_ids;
     }
 }

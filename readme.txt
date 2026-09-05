@@ -29,10 +29,21 @@ Currently supported gallery plugin:
 * WordPress Media Library - Upload imaged directly to the media library. With title, alt
   text, description and caption.
 * NextGEN Gallery — create a new gallery or add to an existing one, with alt
-  text, description, tags, and published/hidden state.
+  text, description and tags.
+* Meow Gallery — create a new gallery or add to an existing one, with alt
+  text, description and tags.
+* FooGallery — create a new gallery or add to an existing one, with alt
+  text, description and tags.
 
+Developer support:
+* Filter: darkuploader_supported_galleries - Allows you to register your own Adapter and therefore support for a custom gallery (plugin)
 
 == Changelog ==
+
+= 0.5.1 - 2026-09-05 =
+* Added translator comment
+* Fixed various bugs
+* Fixed: Errors and warnings from the Plugin Check scan
 
 = 0.5.0 - 2026-09-05 =
 * Added Meow Gallery support

@@ -135,6 +135,7 @@ function field_endpoints()
         $name = $gallery_infos['name'] ?? $key;
 
         $disabled = ($active_plugin) ? '' : 'disabled';
+        /* translators: %s: name of the gallery plugin that is not installed or activated */
         $hint = ($active_plugin) ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkuploader'), $name);
         printf(
             '<fieldset><label><input class="%6$s" type="checkbox" name="%1$s[endpoints][%4$s]" value="1" %6$s %2$s /> %3$s</label><p class="description">%5$s</p></fieldset>',

@@ -280,6 +280,7 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
         }
 
         //Log the event
+        /* translators: %s: title of the uploaded image */
         \DarkUploaderLogging\add_log(sprintf(esc_html__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id)), self::get_plugin_metadata()['slug'] ?? 'undefined', null, $attachment_id);
         \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
 
@@ -341,7 +342,7 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
     }
 
     /**
-     * Creates the thunbnail entries for the meow database
+     * Creates the thumbnail entries for the meow database
      * 
      * @param int $attachment_id
      * @return array{id: string, url: string, zoom_url: string, mime: string}

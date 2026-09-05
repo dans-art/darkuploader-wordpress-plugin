@@ -296,6 +296,7 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
         }
 
         //Log the event
+        /* translators: %s: filename of the uploaded image */
         \DarkUploaderLogging\add_log(sprintf(esc_html__('Image %s uploaded', 'darkuploader'), $filename), self::get_plugin_metadata()['slug'] ?? 'undefined', null, $image_id);
         \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
 

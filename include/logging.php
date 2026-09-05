@@ -280,6 +280,7 @@ function daily_cron()
     }
     $date_cutoff = strtotime('-' . strval($logging));
     delete_logs($date_cutoff);
+    /* translators: %s: age threshold logs older than which were deleted, e.g. "30 days" */
     add_log(
         sprintf(esc_html__('Logs older than %s got deleted', 'darkuploader'), $logging),
         'none',
