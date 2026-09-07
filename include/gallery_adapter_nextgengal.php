@@ -15,6 +15,21 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
 {
     use DarkUploader_Gallery_Adapter_Batch;
 
+    /**
+     * Registers the adapter
+     *
+     * @return void
+     */
+    public static function register()
+    {
+        \add_filter('darkuploader_supported_galleries', function ($galleries) {
+            $galleries['nextgen-gallery'] = [
+                'slug' => 'nextgen-gallery/nggallery.php',
+                'adapter' => self::class,
+            ];
+            return $galleries;
+        });
+    }
 
     /**
      * Describes this adapter and the upload-form fields it accepts.
@@ -281,6 +296,7 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
         }
 
         //Log the event
+        /* translators: %s: filename of the uploaded image */
         \DarkUploaderLogging\add_log(sprintf(esc_html__('Image %s uploaded', 'darkuploader'), $filename), self::get_plugin_metadata()['slug'] ?? 'undefined', null, $image_id);
         \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
 

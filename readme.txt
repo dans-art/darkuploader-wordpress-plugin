@@ -4,35 +4,92 @@ Tags: darktable, gallery, nextgen-gallery, media, uploader
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.4.0
+Stable tag: 0.5.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Upload images from Darktable directly into the WordPress Media Library or supported gallery plugins.
+Send photos from Darktable straight into the WordPress Media Library or your favorite gallery plugin, in one click.
 
 == Description ==
 
-DarkUploader exposes a small REST API (`darkup/v1`) that lets Darktable, or any
-compatible client, upload exported images directly into WordPress and route
-them into a supported gallery plugin.
+DarkUploader closes the gap between Darktable and WordPress. Edit your photos in Darktable, select your target gallery / library, export them, and they land in WordPress ready to publish.
 
-`GET /darkup/v1/info` lists the gallery plugins that are installed and
-active, along with the upload-form fields each one accepts.
+**How it works**
 
-`POST /darkup/v1/media` uploads a single image to the gallery named in the
-`target` field. An recommended `X-Darkup-Batch` request header lets several
-uploads from the same export share one newly created gallery instead of each
-one creating its own.
+1. Edit your photos in Darktable as usual.
+2. Export them with the [DarkWP companion script](https://github.com/dans-art/darkwp/releases) for Darktable.
+3. Pick a target gallery and export. DarkUploader receives the images over a REST endpoint on your site and puts them in the default folders.
 
-Currently supported gallery plugin:
+DarkUploader requires the free DarkWP script to be installed in Darktable to upload the photos. DarkUploader is the WordPress side that receives it.
 
-* WordPress Media Library - Upload imaged directly to the media library. With title, alt
-  text, description and caption.
-* NextGEN Gallery — create a new gallery or add to an existing one, with alt
-  text, description, tags, and published/hidden state.
+= Supported galleries =
 
+* WordPress Media Library
+* NextGEN Gallery
+* Meow Gallery
+* FooGallery
+
+Every upload can carry a title, alt text, description, and caption, though which of those fields are used depends on what the target gallery plugin itself supports.
+
+= Features =
+
+* One-click export from Darktable straight into WordPress
+* Upload into an existing gallery, or create a new one on the fly
+* Per-image title, alt text, caption, description, and tags with placeholder support
+* Batch uploads
+* Configurable maximum upload size
+* Upload history and statistics, with configurable log retention
+* Extensible adapter system for adding support for other gallery plugins
+
+= For developers =
+
+DarkUploader ships with an adapter system so you can register support for a gallery plugin it doesn't cover out of the box:
+
+* `darkuploader_supported_galleries` — filter to register your own gallery adapter.
+
+== Installation ==
+
+1. Install and activate DarkUploader like any other WordPress plugin (Plugins > Add New, or by uploading the zip file).
+2. Go to Media > DarkUploader and choose which gallery plugin(s) DarkUploader is allowed to upload to. By default, no target is active. Make sure to select at least one target before exporting.
+3. Install the [DarkWP script](https://github.com/dans-art/darkwp/releases) in Darktable — follow the installation instructions in that project's readme.
+4. Enter your login and application password in the "darkwp accounts" module. The selected user must have the upload_files capability.
+5. Select the export target in the export module.
+6. Export photos
+
+== Frequently Asked Questions ==
+
+= Do I need another plugin to use DarkUploader? =
+
+Yes. DarkUploader only handles the WordPress side of the upload. You also need the free [DarkWP script](https://github.com/dans-art/darkwp) installed in Darktable, which performs the actual export from Darktable to your site.
+
+= Which gallery plugins are supported? =
+
+The WordPress Media Library, NextGEN Gallery, Meow Gallery, and FooGallery are supported out of the box. Developers can add support for other galleries with the `darkuploader_supported_galleries` filter.
+
+= Can I upload several photos to the same gallery in one export? =
+
+Yes. There is no limit from this plugin. Some galleries might restrict the amount of images per gallery.
+
+= Where can I see a log of past uploads? =
+
+Go to Media > DarkUploader > Statistics & History for a log of uploads (including any errors) and overall statistics. You can control how long logs are kept, or turn logging off entirely, from the General settings.
+
+= Something isn't working. Where can I get help? =
+
+Open an issue on the [DarkUploader support forum on GitHub](https://github.com/dans-art/darkuploader-wordpress-plugin), or email info@dans-art.ch.
 
 == Changelog ==
+
+= 0.5.1 - 2026-09-05 =
+* Added translator comment
+* Fixed various bugs
+* Fixed: Errors and warnings from the Plugin Check scan
+
+= 0.5.0 - 2026-09-05 =
+* Added Meow Gallery support
+* Refactored wordpress library adapter
+* Added filter to dynamically add new adapters
+* Added support for FooGallery
 
 = 0.4.0 - 2026-08-30 =
 * All features for the first release version are implemented!

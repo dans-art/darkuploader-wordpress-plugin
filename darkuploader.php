@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DarkUploader - Image uploader for Darktable
  * Description: Upload images from Darktable directly into the WordPress Media Library or supported Gallery plugins 
- * Version: 0.4.0
+ * Version: 0.5.1
  * Requires at least: 6.6
  * Tested up to: 7.1
  * 
@@ -19,8 +19,14 @@
 
 namespace DarkUploader;
 
+if (! defined('ABSPATH')) exit;
+
+use DarkUploaderAdapter\DarkUploader_FooGallery_Adapter;
+use DarkUploaderAdapter\DarkUploader_MeowGallery_Adapter;
+use DarkUploaderAdapter\DarkUploader_NextGen_Adapter;
+
 //Define constants
-define('DARKUP_PLUGIN_VERSION', '0.4.0');
+define('DARKUP_PLUGIN_VERSION', '0.5.1');
 define('DARKUP_PLUGIN_DIR', __DIR__);
 define('DARKUP_PLUGIN_DIR_URL', plugin_dir_url( __FILE__ ));
 
@@ -44,7 +50,11 @@ require_once(DARKUP_PLUGIN_DIR.'/include/logging.php');
 require_once(DARKUP_PLUGIN_DIR.'/include/gallery_adapter.php');
 require_once(DARKUP_PLUGIN_DIR.'/include/gallery_adapter_wordpress_library.php');
 require_once(DARKUP_PLUGIN_DIR.'/include/gallery_adapter_nextgengal.php');
+DarkUploader_NextGen_Adapter::register();
 require_once(DARKUP_PLUGIN_DIR.'/include/gallery_adapter_meowgal.php');
+DarkUploader_MeowGallery_Adapter::register();
+require_once(DARKUP_PLUGIN_DIR.'/include/gallery_adapter_foo_gallery.php');
+DarkUploader_FooGallery_Adapter::register();
 
 register_activation_hook(__FILE__, '\\DarkUploaderAdmin\\on_plugin_activation');
 register_deactivation_hook(__FILE__, '\\DarkUploaderAdmin\\on_plugin_deactivation');

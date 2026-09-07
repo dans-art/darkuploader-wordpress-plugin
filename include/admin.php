@@ -16,7 +16,7 @@ function admin_init()
     //Enqueue the backend style
     add_action('admin_enqueue_scripts', function ($hook) {
         if ($hook === 'media_page_darkuploader') {
-            wp_enqueue_style('darkwp-admin-style', DARKUP_PLUGIN_DIR_URL . 'dist/css/darkup-admin-style.css', array(), DARKUP_PLUGIN_VERSION);
+            wp_enqueue_style('darkup-admin-style', DARKUP_PLUGIN_DIR_URL . 'dist/css/darkup-admin-style.css', array(), DARKUP_PLUGIN_VERSION);
         }
     });
 
@@ -25,7 +25,9 @@ function admin_init()
         if ($hook !== 'media_page_darkuploader') {
             return;
         }
-        $active_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'general';
+        // Read-only tab navigation, not a state-changing action — no nonce to verify.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'general';
         if ($active_tab !== 'stats-history') {
             return;
         }
@@ -135,15 +137,16 @@ function field_endpoints()
         $name = $gallery_infos['name'] ?? $key;
 
         $disabled = ($active_plugin) ? '' : 'disabled';
-        $hint = ($active_plugin) ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkuploader'), $name);
+        /* translators: %s: name of the gallery plugin that is not installed or activated */
+        $hint = ($active_plugin) ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkuploader'), esc_html($name));
         printf(
             '<fieldset><label><input class="%6$s" type="checkbox" name="%1$s[endpoints][%4$s]" value="1" %6$s %2$s /> %3$s</label><p class="description">%5$s</p></fieldset>',
             esc_attr(DARKUP_SETTINGS_OPTION),
             checked($gallery_checked, true, false),
             esc_html($name),
             esc_attr($key),
-            $hint,
-            $disabled
+            esc_html($hint),
+            esc_attr($disabled)
         );
     }
 }
@@ -176,8 +179,8 @@ function field_max_upload_size()
     printf(
         '<fieldset><input type="text" name="%1$s[%2$s]" value="%3$s" /><p class="description">%4$s (%5$s)</p></fieldset>',
         esc_attr(DARKUP_SETTINGS_OPTION),
-        $setting_name,
-        $upload_size_in_kb,
+        esc_attr($setting_name),
+        esc_attr($upload_size_in_kb),
         esc_html__("Max upload size in KB", 'darkuploader'),
         esc_html($current_mb . ' MB'),
 
@@ -217,9 +220,9 @@ function field_logs()
         <p class="description">%5$s</p>
         </fieldset>',
         esc_attr(DARKUP_SETTINGS_OPTION),
-        $setting_name,
-        $saved_setting,
-        implode('', $options_html),
+        esc_attr($setting_name),
+        esc_attr($saved_setting),
+        implode('', $options_html), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each <option> is already built with esc_attr()/esc_html() in $options_html above.
         esc_html__('Choose for how long the logs should be kept. Default: 90 days. If set to no logging, existing logs will be deleted.', 'darkuploader')
     );
 }
@@ -248,7 +251,7 @@ function sanitize_settings($input)
     $submitted_kb = isset($input['max_upload_size']) ? max((int) $input['max_upload_size'], 0) : 0;
     $sanitized['max_upload_size'] = (int) round($submitted_kb * 1024);
     //If the upload size is 0, it will reset it to the default php.ini setting
-    if($sanitized['max_upload_size'] === 0){
+    if ($sanitized['max_upload_size'] === 0) {
         $sanitized['max_upload_size'] = wp_max_upload_size();
     }
 
@@ -369,9 +372,10 @@ function render_menu()
         'help'  => __('Help', 'darkuploader'),
     ];
 
-    $active_tab = (isset($_GET['tab']) && array_key_exists($_GET['tab'], $tabs))
-        ? sanitize_key($_GET['tab'])
-        : 'general';
+    // Read-only tab navigation, not a state-changing action — no nonce to verify.
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    $requested_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : '';
+    $active_tab = array_key_exists($requested_tab, $tabs) ? $requested_tab : 'general';
 
     require DARKUP_PLUGIN_DIR . '/include/views/admin-page.php';
 }
@@ -401,25 +405,14 @@ function get_supported_galleries(bool $only_active = true): array
 
     $endpoints_selected = $settings['endpoints'] ?? [];
 
-    $all_galleries = [
+    $default_galleries = [
         'media-library' => [
             'slug' => 'media-library',
             'adapter' => '\DarkUploaderAdapter\DarkUploader_WP_Library_Adapter',
-        ],
-        'nextgen-gallery' => [
-            'slug' => 'nextgen-gallery/nggallery.php',
-            'adapter' => '\DarkUploaderAdapter\DarkUploader_NextGen_Adapter',
-        ],
-        'meow-gallery' => [
-            'slug' => 'meow-gallery/meow-gallery.php',
-            'adapter' => '\DarkUploaderAdapter\DarkUploader_MeowGallery_Adapter',
-        ],
-        'dummy_gall' => [
-            'slug' => 'meow-gallery/meow-gallery.php',
-            'adapter' => ''
         ]
     ];
-
+    $all_galleries = \apply_filters('darkuploader_supported_galleries', $default_galleries);
+    
     if (!$only_active) {
         return $all_galleries;
     }
