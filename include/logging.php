@@ -328,7 +328,7 @@ function remove_cron()
 /**
  * Debug helper: inserts 1000 fake log rows (random gallery/user/image,
  * one per day going back in time) for exercising the Statistics & History
- * UI. Only reachable when WP_DEBUG is enabled — see tab-stats-history.php.
+ * UI. This function is currently not used anywhere.
  */
 function add_fake_log()
 {

@@ -4,7 +4,7 @@ Tags: darktable, gallery, nextgen-gallery, media, uploader
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.5.1
+Stable tag: 0.5.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -79,6 +79,10 @@ Go to Media > DarkUploader > Statistics & History for a log of uploads (includin
 Open an issue on the [DarkUploader support forum on GitHub](https://github.com/dans-art/darkuploader-wordpress-plugin), or email info@dans-art.ch.
 
 == Changelog ==
+
+= 0.5.2 - 2026-09-05 =
+* Removed debugger function to create fake log entries
+* Added rel="noopener noreferrer" to links
 
 = 0.5.1 - 2026-09-05 =
 * Added translator comment
