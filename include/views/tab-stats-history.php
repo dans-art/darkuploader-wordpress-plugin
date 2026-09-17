@@ -3,22 +3,6 @@
 if (! defined('ABSPATH')) exit;
 
 (function () {
-    if (defined('WP_DEBUG') and WP_DEBUG === true) {
-        if (
-            isset($_GET['fill_dummy_data'], $_GET['_wpnonce'])
-            && $_GET['fill_dummy_data'] === 'true'
-            && wp_verify_nonce(sanitize_key($_GET['_wpnonce']), 'darkup_fill_dummy_data')
-        ) {
-            \DarkUploaderLogging\add_fake_log();
-        }
-
-        $dummy_data_url = wp_nonce_url(
-            admin_url('upload.php?page=darkuploader&tab=stats-history&fill_dummy_data=true'),
-            'darkup_fill_dummy_data'
-        );
-        echo sprintf('<a href="%s">%s</a>', esc_url($dummy_data_url), esc_html__('Create dummy data', 'darkuploader'));
-    }
-
     $statistics = \DarkUploaderLogging\get_statistics();
 ?>
     <h2><?php esc_html_e('Statistics', 'darkuploader'); ?></h2>
