@@ -1,10 +1,10 @@
 === DarkUploader - Image uploader for Darktable ===
 Contributors: dansart
-Tags: darktable, gallery, nextgen-gallery, media, uploader
+Tags: darktable, gallery, photo, media, uploader
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.5.2
+Stable tag: 0.5.3
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -80,8 +80,12 @@ Open an issue on the [DarkUploader support forum on GitHub](https://github.com/d
 
 == Changelog ==
 
+= 0.5.3 - 2026-09-17 =
+* Removed: Tested up in plugin header
+* Improved readme
+
 = 0.5.2 - 2026-09-05 =
-* Removed debugger function to create fake log entries
+* Removed debugger access to create fake log entries
 * Added rel="noopener noreferrer" to links
 
 = 0.5.1 - 2026-09-05 =
