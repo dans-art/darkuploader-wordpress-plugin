@@ -25,7 +25,7 @@ const defaultView = {
 const fields = [
 	{
 		id: 'message',
-		label: __('message', 'darkuploader'),
+		label: __('Message', 'darkuploader'),
 		enableHiding: false,
 		enableSorting: false,
 		/*render: ( { item } ) => (

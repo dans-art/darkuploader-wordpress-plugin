@@ -2,10 +2,10 @@
 /**
  * Plugin Name: DarkUploader - Image uploader for Darktable
  * Description: Upload images from Darktable directly into the WordPress Media Library or supported Gallery plugins 
- * Version: 0.5.3
- * Requires at least: 6.6
+ * Version: 0.5.4
+ * Requires at least: 7.0
  *
- * Requires PHP: 7.4
+ * Requires PHP: 8.0
  * 
  * Author: dansart
  * Author URI: https://dans-art.ch
@@ -25,12 +25,14 @@ use DarkUploaderAdapter\DarkUploader_MeowGallery_Adapter;
 use DarkUploaderAdapter\DarkUploader_NextGen_Adapter;
 
 //Define constants
-define('DARKUP_PLUGIN_VERSION', '0.5.3');
+define('DARKUP_PLUGIN_VERSION', '0.5.4');
 define('DARKUP_PLUGIN_DIR', __DIR__);
 define('DARKUP_PLUGIN_DIR_URL', plugin_dir_url( __FILE__ ));
+define('DARKUP_PLUGIN_BASENAME', plugin_basename( __FILE__ ));
 
 define('DARKUP_SLUG', 'darkuploader');
 define('DARKUP_CAPABILITY', 'upload_files');
+define('DARKUP_SETTINGS_CAPABILITY', 'manage_options');
 
 define('DARKUP_SETTINGS_GROUP', 'darkup_settings');
 define('DARKUP_SETTINGS_OPTION', 'darkup_settings');
@@ -38,7 +40,7 @@ define('DARKUP_STATISTICS_OPTION', 'darkup_stats');
 
 define('DARKUP_DAILY_CRON_HOOK', 'darkup_daily_cron');
 
-define('DARKUP_DB_VERSION', '1.0');
+define('DARKUP_DB_VERSION', '1.1');
 
 //Include the scripts
 require_once(DARKUP_PLUGIN_DIR.'/include/admin.php');
@@ -57,11 +59,14 @@ DarkUploader_FooGallery_Adapter::register();
 
 register_activation_hook(__FILE__, '\\DarkUploaderAdmin\\on_plugin_activation');
 register_deactivation_hook(__FILE__, '\\DarkUploaderAdmin\\on_plugin_deactivation');
-//@Todo: Add deactivation hook with options to delete all data
 
 add_action('admin_init','\\DarkUploaderAdmin\admin_init');
 add_action('admin_menu','\\DarkUploaderAdmin\register_menu');
+add_action('admin_init','\\DarkUploaderLogging\maybe_upgrade_log_table');
+add_action('admin_notices','\\DarkUploaderLogging\show_db_error_notice');
 add_action('rest_api_init','\\DarkUploaderAdmin\register_rest_routes');
+// After core created the new site's tables (priority 10).
+add_action('wp_initialize_site','\\DarkUploaderAdmin\on_site_initialized', 20);
 
 //Cron
 add_action(DARKUP_DAILY_CRON_HOOK, '\\DarkUploaderLogging\daily_cron');

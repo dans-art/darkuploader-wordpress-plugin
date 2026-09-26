@@ -32,34 +32,34 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
         $meta = [
             [
                 'id' => 'title',
-                'label' => esc_html(__('Title', 'darkuploader')),
+                'label' => __('Title', 'darkuploader'),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Enter the title for the image', 'darkuploader')),
+                'hint' => __('Enter the title for the image', 'darkuploader'),
                 'placeholder' => '$(Xmp.dc.title)',
             ],
             [
                 'id' => 'alt_text',
-                'label' => esc_html(__('Alt text', 'darkuploader')),
+                'label' => __('Alt text', 'darkuploader'),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Enter the alt text for the image', 'darkuploader')),
+                'hint' => __('Enter the alt text for the image', 'darkuploader'),
                 'placeholder' => '$(Xmp.dc.title)',
             ],
             [
                 'id' => 'description',
-                'label' => esc_html(__('Description', 'darkuploader')),
+                'label' => __('Description', 'darkuploader'),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Write a description for the image', 'darkuploader')),
+                'hint' => __('Write a description for the image', 'darkuploader'),
                 'placeholder' => '$(Xmp.dc.description)',
             ],
             [
                 'id' => 'caption',
-                'label' => esc_html(__('Caption', 'darkuploader')),
+                'label' => __('Caption', 'darkuploader'),
                 'type' => 'text',
                 'required' => false,
-                'hint' => esc_html(__('Add the caption for the image', 'darkuploader')),
+                'hint' => __('Add the caption for the image', 'darkuploader'),
                 'placeholder' => '$(Xmp.dc.subject)',
             ],
         ];
@@ -85,7 +85,7 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
         $fields_meta = self::get_plugin_metadata()['meta'] ?? false;
         if (!$fields_meta) {
             //This should never happen...
-            return new WP_Error('no_meta_found', esc_html(__('Failed to load the meta fields', 'darkuploader')));
+            return new WP_Error('no_meta_found', __('Failed to load the meta fields', 'darkuploader'));
         }
         $values = [];
         foreach ($fields_meta as $field) {
@@ -101,8 +101,8 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
         //Log the event. add_log() captures $_POST and the allowlisted request
         //headers (see LOGGED_HEADERS in logging.php) into postmeta on its own.
         \DarkUploaderLogging\add_log(
-            /* translators: %s: title of the uploaded image */
-            sprintf(esc_html__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id)),
+            /* translators: %s: title or filename of the uploaded image */
+            sprintf(__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id)),
             self::get_plugin_metadata()['slug'] ?? 'undefined',
             null,
             $attachment_id
@@ -127,7 +127,7 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
     public static function create_attachment(array $file, array $values): int|WP_Error
     {
         if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
-            return new WP_Error('invalid_upload', esc_html(__('Invalid uploaded file', 'darkuploader')));
+            return new WP_Error('invalid_upload', __('Invalid uploaded file', 'darkuploader'));
         }
 
         // wp_handle_upload()/wp_generate_attachment_metadata() live in wp-admin and
@@ -140,7 +140,7 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
         // Avoids a Invalid form submission error
         $upload = wp_handle_upload($file, ['test_form' => false]);
         if (isset($upload['error'])) {
-            return new WP_Error('wp_upload_error', esc_html($upload['error']));
+            return new WP_Error('wp_upload_error', $upload['error']);
         }
 
         $title = ($values['title'] ?? '') !== '' ? $values['title'] : preg_replace('/\.[^.]+$/', '', basename($upload['file']));

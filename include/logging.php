@@ -26,8 +26,15 @@ function get_log_table_name(): string
 
 /**
  * Creates (or upgrades, via dbDelta) the log table. Runs on plugin activation
+ * and from maybe_upgrade_log_table() whenever DARKUP_DB_VERSION changes.
+ *
+ * The version is only stored once the table exists, so a failed creation is
+ * retried on the next admin page load; the error is kept in the
+ * darkup_db_error option for show_db_error_notice() until then.
+ *
+ * @return bool Whether the table exists afterwards.
  */
-function create_log_table(): void
+function create_log_table(): bool
 {
     global $wpdb;
 
@@ -43,7 +50,7 @@ function create_log_table(): void
         image_id BIGINT UNSIGNED DEFAULT NULL,
         gallery VARCHAR(64) NOT NULL,
         user_id BIGINT UNSIGNED NOT NULL,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME NOT NULL,
         postmeta TEXT DEFAULT NULL,
         PRIMARY KEY  (id),
         KEY gallery (gallery),
@@ -54,7 +61,58 @@ function create_log_table(): void
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta($sql);
 
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- checking our own custom table right after creating it.
+    if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table_name))) !== $table_name) {
+        update_option('darkup_db_error', $wpdb->last_error !== '' ? $wpdb->last_error : 'unknown', false);
+        return false;
+    }
+
+    delete_option('darkup_db_error');
     update_option('darkup_db_version', DARKUP_DB_VERSION);
+    return true;
+}
+
+/**
+ * Creates or upgrades the log table when the stored schema version differs
+ * from DARKUP_DB_VERSION — plugin updates don't run the activation hook.
+ */
+function maybe_upgrade_log_table(): void
+{
+    if (get_option('darkup_db_version') !== DARKUP_DB_VERSION) {
+        create_log_table();
+    }
+}
+
+/**
+ * Explains a failed log table creation on the plugins screen and the
+ * DarkUploader screen, instead of letting every log write fail silently.
+ */
+function show_db_error_notice(): void
+{
+    $error = get_option('darkup_db_error');
+    $screen = get_current_screen();
+    if (! $error || ! $screen || ! in_array($screen->id, ['plugins', 'media_page_darkuploader'], true) || ! current_user_can(DARKUP_SETTINGS_CAPABILITY)) {
+        return;
+    }
+    wp_admin_notice(
+        sprintf(
+            /* translators: %s: database error message */
+            esc_html__('DarkUploader could not create its log table, so uploads are not logged. Database error: %s', 'darkuploader'),
+            esc_html($error)
+        ),
+        ['type' => 'error']
+    );
+}
+
+/**
+ * Returns the configured log retention period: one of '90days', '60days',
+ * '30days', '7days', 'forever' or 'no' (logging disabled). Defaults to
+ * '90days', the same default the settings field shows.
+ */
+function get_log_retention(): string
+{
+    $options = get_option(DARKUP_SETTINGS_OPTION, []);
+    return (string) ($options['logs'] ?? '90days');
 }
 
 /**
@@ -72,11 +130,15 @@ const LOGGED_HEADERS = ['X-Darkup-Batch'];
  * @param int|null    $user_id      Optional. Defaults to the current user.
  * @param int|null    $image_id     Optional. Attachment/image id the log entry is about.
  * @param string|null $message_type Optional. The type of message. Can be single | summary
- * @return int|WP_Error Inserted row id, or WP_Error on failure.
+ * @return int|WP_Error Inserted row id, 0 when logging is disabled, or WP_Error on failure.
  */
 function add_log(string $message, string $gallery, ?int $user_id = null, ?int $image_id = null, ?string $message_type = 'single')
 {
     global $wpdb;
+
+    if (get_log_retention() === 'no') {
+        return 0;
+    }
 
     if (empty($message) || empty($gallery)) {
         return new WP_Error('darkup_log_missing_fields', __('A message and gallery are required to log an upload.', 'darkuploader'));
@@ -99,6 +161,10 @@ function add_log(string $message, string $gallery, ?int $user_id = null, ?int $i
         'headers' => $headers,
     ], 'sanitize_text_field');
 
+    // The database's own time, so created_at is in the same timezone delete_logs()' FROM_UNIXTIME() compares in.
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    $created_at = $wpdb->get_var('SELECT NOW()');
+
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- custom plugin table, not a WP core table with an object-cache group.
     $inserted = $wpdb->insert(
         get_log_table_name(),
@@ -108,7 +174,7 @@ function add_log(string $message, string $gallery, ?int $user_id = null, ?int $i
             'user_id' => $user_id ?? get_current_user_id(),
             'image_id' => $image_id,
             'message_type' => $message_type !== null ? sanitize_key($message_type) : 'single',
-            'created_at' => current_time('mysql'),
+            'created_at' => $created_at,
             'postmeta' => wp_json_encode($postmeta),
         ],
         ['%s', '%s', '%d', '%d', '%s', '%s', '%s']
@@ -194,8 +260,10 @@ function get_all_logs(array $args = []): array
 
     // hardcoded whitelists — none of the interpolated parts are raw user input.
     //Custom plugin table, not a WP core table with a cache group.
-    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-    $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$where_sql}", $params));
+    // Without any filter there is no placeholder, and wpdb::prepare() would complain about that.
+    $count_sql = "SELECT COUNT(*) FROM {$table} WHERE {$where_sql}";
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    $total = (int) $wpdb->get_var($params ? $wpdb->prepare($count_sql, $params) : $count_sql);
 
     $items_params = array_merge($params, [$per_page, $offset]);
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -285,19 +353,17 @@ function delete_logs(int $till_timestamp)
  */
 function daily_cron()
 {
-    //Get the cron delete option
-    $options = get_option(DARKUP_SETTINGS_OPTION, []);
-    $logging = $options['logs'] ?? null;
+    $logging = get_log_retention();
 
-    //Check if the logging cleanup should happen
-    if ($logging === null || $logging === 'forever') {
+    //Nothing to clean up: logs are kept forever, or logging is disabled (and the logs got deleted already)
+    if ($logging === 'forever' || $logging === 'no') {
         return;
     }
     $date_cutoff = strtotime('-' . strval($logging));
     delete_logs($date_cutoff);
     add_log(
         /* translators: %s: age threshold logs older than which were deleted, e.g. "30 days" */
-        sprintf(esc_html__('Logs older than %s got deleted', 'darkuploader'), $logging),
+        sprintf(__('Logs older than %s got deleted', 'darkuploader'), $logging),
         'none',
         null,
         null,
@@ -321,8 +387,7 @@ function add_cron()
  */
 function remove_cron()
 {
-    $timestamp = wp_next_scheduled(DARKUP_DAILY_CRON_HOOK);
-    wp_unschedule_event($timestamp, DARKUP_DAILY_CRON_HOOK);
+    wp_clear_scheduled_hook(DARKUP_DAILY_CRON_HOOK);
 }
 
 /**

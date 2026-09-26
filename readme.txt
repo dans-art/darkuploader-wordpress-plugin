@@ -1,10 +1,10 @@
 === DarkUploader - Image uploader for Darktable ===
 Contributors: dansart
 Tags: darktable, gallery, photo, media, uploader
-Requires at least: 6.6
+Requires at least: 7.0
 Tested up to: 7.1
-Requires PHP: 7.4
-Stable tag: 0.5.3
+Requires PHP: 8.0
+Stable tag: 0.5.4
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -79,6 +79,23 @@ Go to Media > DarkUploader > Statistics & History for a log of uploads (includin
 Open an issue on the [DarkUploader support forum on GitHub](https://github.com/dans-art/darkuploader-wordpress-plugin), or email info@dans-art.ch.
 
 == Changelog ==
+
+= 0.5.4 - 2026-09-26 =
+* Fixed: Fatal Error when activated on PHP 7.4. Bumped to PHP 8.0
+* Fixed: Log display did not work in WP <7.0. Bumped required version to 7.0
+* Changed: The General settings require the manage_options capability. Users with upload_files can still see the statistics and history
+* Added: Uninstall routine that removes the log table, options, transients and cron
+* Added: Multisite support for activation, deactivation and new sites
+* Fixed: Uploading to the disabled Media Library caused a fatal error
+* Fixed: FooGallery reported success when adding to a gallery that doesn't exist
+* Fixed: "No logging" still created log entries
+* Fixed: Uploaded images were left in the Media Library when adding them to a Meow Gallery or FooGallery failed
+* Fixed: wpdb::prepare() notice when loading the history
+* Fixed: Log dates now use the database timezone, matching the log cleanup
+* Fixed: The log table could not be created on MySQL < 5.6.5. The table is now also created/upgraded after plugin updates, and a notice explains when it fails
+* Fixed: Double escaped messages in the REST responses and the history
+* Fixed: FooGallery default sort order
+* Fixed: Translations for the history table and the help tab
 
 = 0.5.3 - 2026-09-17 =
 * Removed: Tested up in plugin header
