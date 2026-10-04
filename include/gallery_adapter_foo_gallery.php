@@ -230,7 +230,11 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
 
         //Check if there is a gallery that got set or created within that batch. If so
         //it will override the create mode to add mode.
-        $gallery_id_from_batch = $batch_key ? (get_transient($batch_key)['gallery_id'] ?? false) : false;
+        $gallery_id_from_batch = false;
+        if ($batch_key) {
+            $batch_state = get_transient($batch_key);
+            $gallery_id_from_batch = $batch_state['gallery_id'] ?? false;
+        }
         if (!empty($gallery_id_from_batch)) {
             $mode = 'add';
             $values['gallery_id'] = $gallery_id_from_batch;
@@ -241,11 +245,23 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
             return new WP_Error('no_mode_found', __('Mode not found or not supported', 'darkuploader'));
         }
 
+        // Checked before the attachment is created, so a refused upload leaves nothing behind.
+        // null checks the permission to create a new gallery.
+        $permission_gallery_id = null;
+        if ($mode === 'add') {
+            $permission_gallery_id = (string) ($values['gallery_id'] ?? '');
+        }
+        $allowed = self::gallery_permissions($permission_gallery_id);
+        if (is_wp_error($allowed)) {
+            return $allowed;
+        }
+
         $attachment_id = DarkUploader_WP_Library_Adapter::create_attachment($file, $values);
         if (is_wp_error($attachment_id)) {
             return $attachment_id;
         }
 
+        $gallery_id = 0;
         switch ($mode) {
             case 'create':
                 $gallery_id = self::create_gallery($values['gallery_name'] ?? '', $attachment_id, $layout, $order_by);
@@ -275,10 +291,41 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
         ]);
 
         //Log the event
+        $slug = self::get_plugin_metadata()['slug'] ?? 'undefined';
         /* translators: %s: title or filename of the uploaded image */
-        \DarkUploaderLogging\add_log(sprintf(__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id)), self::get_plugin_metadata()['slug'] ?? 'undefined', null, $attachment_id);
-        \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
+        $message = sprintf(__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id));
+        \DarkUploaderLogging\add_log($message, $slug, null, $attachment_id);
+        \DarkUploaderLogging\update_statistic($slug);
 
+        return true;
+    }
+
+    /**
+     * Checks FooGallery's own capabilities, the same way its abilities do:
+     * creating needs create_foogalleries and publish_foogalleries (galleries are
+     * created published), adding needs edit_post on that gallery.
+     *
+     * @param string|null $gallery_id The gallery to add images to, or null to create a new gallery.
+     * @return true|WP_Error
+     */
+    public static function gallery_permissions(?string $gallery_id = null): bool|WP_Error
+    {
+        if ($gallery_id === null) {
+            if (!current_user_can('create_foogalleries') || !current_user_can('publish_foogalleries')) {
+                return new WP_Error('darkup_forbidden', __('You are not allowed to create FooGallery galleries.', 'darkuploader'), ['status' => 403]);
+            }
+            return true;
+        }
+
+        // FOOGALLERY_CPT_GALLERY is only defined while FooGallery is active.
+        $gallery_post_type = defined('FOOGALLERY_CPT_GALLERY') ? constant('FOOGALLERY_CPT_GALLERY') : 'foogallery';
+        $gallery_id = absint($gallery_id);
+        if (!$gallery_id || get_post_type($gallery_id) !== $gallery_post_type) {
+            return new WP_Error('gallery_not_found', __('Gallery not found', 'darkuploader'));
+        }
+        if (!current_user_can('edit_post', $gallery_id)) {
+            return new WP_Error('darkup_forbidden', __('You are not allowed to add images to this gallery.', 'darkuploader'), ['status' => 403]);
+        }
         return true;
     }
 

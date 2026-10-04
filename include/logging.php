@@ -254,8 +254,11 @@ function get_all_logs(array $args = []): array
         'gallery' => 'gallery',
         'date' => 'created_at',
     ];
-    $orderby_column = esc_sql($sortable_columns[$args['orderby'] ?? 'date'] ?? 'created_at');
-    $order = esc_sql((isset($args['order']) && strtolower((string) $args['order']) === 'asc') ? 'ASC' : 'DESC');
+    $orderby_key = $args['orderby'] ?? 'date';
+    $orderby_column = esc_sql($sortable_columns[$orderby_key] ?? 'created_at');
+
+    $is_ascending = isset($args['order']) && strtolower((string) $args['order']) === 'asc';
+    $order = esc_sql($is_ascending ? 'ASC' : 'DESC');
 
 
     // hardcoded whitelists — none of the interpolated parts are raw user input.

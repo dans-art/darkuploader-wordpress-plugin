@@ -20,12 +20,13 @@ function get_info(\WP_REST_Request $request)
     $galls = DarkUploaderAdmin\get_supported_galleries();
     $info = [];
     foreach ($galls as $slug => $gallery) {
-        if ($slug !== 'media-library') {
-            if (empty($gallery['adapter']) || ! \is_plugin_active($gallery['slug'])) {
-                continue;
-            }
+        $adapter = $gallery['adapter'] ?? '';
+        if (empty($adapter)) {
+            continue;
         }
-        $adapter = $gallery['adapter'];
+        if ($slug !== 'media-library' && ! \is_plugin_active($gallery['slug'] ?? '')) {
+            continue;
+        }
         $info[$slug] = $adapter::get_plugin_metadata();
     }
     return new WP_REST_Response($info, 200);
@@ -53,7 +54,7 @@ function upload_media(WP_REST_Request $request)
     }
 
     $max_upload_size = DarkUploaderAdmin\get_max_upload_size();
-    if ((int) $file['size'] > $max_upload_size) {
+    if ((int) ($file['size'] ?? 0) > $max_upload_size) {
         $message = sprintf(
             /* translators: %s: maximum upload size in MB */
             __('The uploaded file exceeds the maximum allowed size of %s MB.', 'darkuploader'),
@@ -109,7 +110,7 @@ function is_target_available(string $target, ?array $gallery): bool
     }
 
     // The gallery plugin itself must be active.
-    return \is_plugin_active($gallery['slug']);
+    return \is_plugin_active($gallery['slug'] ?? '');
 }
 
 /**
@@ -120,10 +121,14 @@ function is_target_available(string $target, ?array $gallery): bool
  */
 function get_logs(WP_REST_Request $request)
 {
+    // Only users who can manage the plugin see everyone's uploads; everyone else
+    // is limited to their own, whatever user_id they ask for.
+    $user_id = current_user_can(DARKUP_SETTINGS_CAPABILITY) ? $request->get_param('user_id') : get_current_user_id();
+
     $result = \DarkUploaderLogging\get_all_logs([
         'search' => $request->get_param('search'),
         'gallery' => $request->get_param('gallery'),
-        'user_id' => $request->get_param('user_id'),
+        'user_id' => $user_id,
         'date' => $request->get_param('date'),
         'page' => $request->get_param('page'),
         'per_page' => $request->get_param('per_page'),

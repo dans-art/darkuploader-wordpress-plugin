@@ -41,6 +41,10 @@ if (! defined('ABSPATH')) exit;
             <p>
                 <?php
                 $user_stats = $statistics['by_user'] ?? [];
+                // Like the history, other users' uploads are only shown to users who can manage the plugin.
+                if (! current_user_can(DARKUP_SETTINGS_CAPABILITY)) {
+                    $user_stats = array_intersect_key($user_stats, [get_current_user_id() => true]);
+                }
                 arsort($user_stats);
                 if (count($user_stats) === 0) {
                     echo esc_html__("No user statistics available. Upload some images and see the numbers rising", "darkuploader");

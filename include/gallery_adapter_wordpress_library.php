@@ -93,6 +93,11 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
             $values[$field['id']] = sanitize_text_field((string) $raw);
         }
 
+        $allowed = self::gallery_permissions();
+        if (is_wp_error($allowed)) {
+            return $allowed;
+        }
+
         $attachment_id = self::create_attachment($file, $values);
         if (is_wp_error($attachment_id)) {
             return $attachment_id;
@@ -111,6 +116,21 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
         \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
 
 
+        return true;
+    }
+
+    /**
+     * The Media Library has no galleries, so uploading only needs upload_files,
+     * the same capability wp/v2/media requires.
+     *
+     * @param string|null $gallery_id Unused.
+     * @return true|WP_Error
+     */
+    public static function gallery_permissions(?string $gallery_id = null): bool|WP_Error
+    {
+        if (!current_user_can('upload_files')) {
+            return new WP_Error('darkup_forbidden', __('You are not allowed to upload files.', 'darkuploader'), ['status' => 403]);
+        }
         return true;
     }
 
@@ -143,7 +163,11 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
             return new WP_Error('wp_upload_error', $upload['error']);
         }
 
-        $title = ($values['title'] ?? '') !== '' ? $values['title'] : preg_replace('/\.[^.]+$/', '', basename($upload['file']));
+        // Without a title, fall back to the filename without its extension.
+        $title = $values['title'] ?? '';
+        if ($title === '') {
+            $title = preg_replace('/\.[^.]+$/', '', basename($upload['file']));
+        }
 
         $attachment_id = wp_insert_attachment([
             'post_mime_type' => $upload['type'],

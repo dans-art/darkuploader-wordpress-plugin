@@ -168,12 +168,31 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
 
         //Check if there is a gallery that got set or created within that batch. If so
         //it will override the create mode to add mode.
-        $gallery_id_from_batch = $batch_key ? (get_transient($batch_key)['gallery_id'] ?? false) : false;
+        $gallery_id_from_batch = false;
+        if ($batch_key) {
+            $batch_state = get_transient($batch_key);
+            $gallery_id_from_batch = $batch_state['gallery_id'] ?? false;
+        }
         if ($gallery_id_from_batch > 0) {
             $mode = 'add';
             $values['gallery_id'] = $gallery_id_from_batch;
         }
 
+        if (!in_array($mode, ['create', 'add'], true)) {
+            return new WP_Error('no_mode_found', __('Mode not found or not supported', 'darkuploader'));
+        }
+
+        // null checks the permission to create a new gallery.
+        $permission_gallery_id = null;
+        if ($mode === 'add') {
+            $permission_gallery_id = (string) ($values['gallery_id'] ?? '');
+        }
+        $allowed = self::gallery_permissions($permission_gallery_id);
+        if (is_wp_error($allowed)) {
+            return $allowed;
+        }
+
+        $gallery_id = 0;
         switch ($mode) {
             case 'create':
                 $gallery_id = self::create_gallery($values['gallery_name'] ?? '');
@@ -185,19 +204,53 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
                 }
                 break;
             case 'add':
+                // gallery_permissions() already made sure the gallery exists.
                 $gallery_id = absint($values['gallery_id'] ?? 0);
-                if (!$gallery_id || !\Imagely\NGG\DataMappers\Gallery::get_instance()->find($gallery_id)) {
-                    return new WP_Error('gallery_not_found', __('Gallery not found', 'darkuploader'));
-                }
                 break;
-
-            default:
-                return new WP_Error('no_mode_found', __('Mode not found or not supported', 'darkuploader'));
         }
 
         $image_id = self::add_image_to_gallery($gallery_id, $file, $values);
         if (is_wp_error($image_id)) {
             return $image_id;
+        }
+        return true;
+    }
+
+    /**
+     * Checks NextGEN's own capabilities: uploading needs "NextGEN Upload images",
+     * creating a gallery additionally "NextGEN Manage gallery" (what NextGEN checks
+     * for "Add new gallery"), and adding to a gallery that belongs to someone else
+     * "NextGEN Manage others gallery".
+     *
+     * @param string|null $gallery_id The gallery to add images to, or null to create a new gallery.
+     * @return true|WP_Error
+     */
+    public static function gallery_permissions(?string $gallery_id = null): bool|WP_Error
+    {
+        // phpcs:ignore WordPress.WP.Capabilities.Unknown -- NextGEN's own capability.
+        if (!current_user_can('NextGEN Upload images')) {
+            return new WP_Error('darkup_forbidden', __('You are not allowed to upload images to NextGEN Gallery.', 'darkuploader'), ['status' => 403]);
+        }
+
+        if ($gallery_id === null) {
+            // phpcs:ignore WordPress.WP.Capabilities.Unknown -- NextGEN's own capability.
+            if (!current_user_can('NextGEN Manage gallery')) {
+                return new WP_Error('darkup_forbidden', __('You are not allowed to create NextGEN galleries.', 'darkuploader'), ['status' => 403]);
+            }
+            return true;
+        }
+
+        $gallery = null;
+        $gallery_id = absint($gallery_id);
+        if ($gallery_id) {
+            $gallery = \Imagely\NGG\DataMappers\Gallery::get_instance()->find($gallery_id);
+        }
+        if (!$gallery) {
+            return new WP_Error('gallery_not_found', __('Gallery not found', 'darkuploader'));
+        }
+        // phpcs:ignore WordPress.WP.Capabilities.Unknown -- NextGEN's own capability.
+        if ((int) $gallery->author !== get_current_user_id() && !current_user_can('NextGEN Manage others gallery')) {
+            return new WP_Error('darkup_forbidden', __('You are not allowed to add images to this gallery.', 'darkuploader'), ['status' => 403]);
         }
         return true;
     }
@@ -296,9 +349,11 @@ class DarkUploader_NextGen_Adapter implements DarkUploader_Gallery_Adapter
         }
 
         //Log the event
+        $slug = self::get_plugin_metadata()['slug'] ?? 'undefined';
         /* translators: %s: title or filename of the uploaded image */
-        \DarkUploaderLogging\add_log(sprintf(__('Image %s uploaded', 'darkuploader'), $filename), self::get_plugin_metadata()['slug'] ?? 'undefined', null, $image_id);
-        \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
+        $message = sprintf(__('Image %s uploaded', 'darkuploader'), $filename);
+        \DarkUploaderLogging\add_log($message, $slug, null, $image_id);
+        \DarkUploaderLogging\update_statistic($slug);
 
 
         return $image_id;

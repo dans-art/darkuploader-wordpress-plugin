@@ -4,7 +4,7 @@ Tags: darktable, gallery, photo, media, uploader
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.5.4
+Stable tag: 0.5.5
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -79,6 +79,11 @@ Go to Media > DarkUploader > Statistics & History for a log of uploads (includin
 Open an issue on the [DarkUploader support forum on GitHub](https://github.com/dans-art/darkuploader-wordpress-plugin), or email info@dans-art.ch.
 
 == Changelog ==
+
+= 0.5.5 - 2026-10-04 =
+* Added stricter permission checks. Logs and Statistics are only shown to the current user (except admin)
+* Added Adapter specific permission check to respect the gallery plugin's permission requirements
+* Refactored code
 
 = 0.5.4 - 2026-09-26 =
 * Fixed: Fatal Error when activated on PHP 7.4. Bumped to PHP 8.0

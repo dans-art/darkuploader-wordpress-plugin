@@ -244,7 +244,11 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
 
         //Check if there is a gallery that got set or created within that batch. If so
         //it will override the create mode to add mode.
-        $gallery_id_from_batch = $batch_key ? (get_transient($batch_key)['gallery_id'] ?? false) : false;
+        $gallery_id_from_batch = false;
+        if ($batch_key) {
+            $batch_state = get_transient($batch_key);
+            $gallery_id_from_batch = $batch_state['gallery_id'] ?? false;
+        }
         if (!empty($gallery_id_from_batch)) {
             $mode = 'add';
             $values['gallery_id'] = $gallery_id_from_batch;
@@ -254,6 +258,17 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
         // Library attachment that a gallery row merely references by ID.
         if (!in_array($mode, ['create', 'add'], true)) {
             return new WP_Error('no_mode_found', __('Mode not found or not supported', 'darkuploader'));
+        }
+
+        // Checked before the attachment is created, so a refused upload leaves nothing behind.
+        // null checks the permission to create a new gallery.
+        $permission_gallery_id = null;
+        if ($mode === 'add') {
+            $permission_gallery_id = (string) ($values['gallery_id'] ?? '');
+        }
+        $allowed = self::gallery_permissions($permission_gallery_id);
+        if (is_wp_error($allowed)) {
+            return $allowed;
         }
 
         $attachment_id = DarkUploader_WP_Library_Adapter::create_attachment($file, $values);
@@ -284,10 +299,38 @@ class DarkUploader_MeowGallery_Adapter implements DarkUploader_Gallery_Adapter
         }
 
         //Log the event
+        $slug = self::get_plugin_metadata()['slug'] ?? 'undefined';
         /* translators: %s: title or filename of the uploaded image */
-        \DarkUploaderLogging\add_log(sprintf(__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id)), self::get_plugin_metadata()['slug'] ?? 'undefined', null, $attachment_id);
-        \DarkUploaderLogging\update_statistic(self::get_plugin_metadata()['slug'] ?? 'undefined');
+        $message = sprintf(__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id));
+        \DarkUploaderLogging\add_log($message, $slug, null, $attachment_id);
+        \DarkUploaderLogging\update_statistic($slug);
 
+        return true;
+    }
+
+    /**
+     * Checks Meow Gallery's own permission. Its gallery manager (save_shortcode etc.)
+     * uses Meow_MGL_Core::can_access_settings() for creating and changing galleries
+     * alike, i.e. manage_options, filterable via mgl_allow_setup. Meow galleries
+     * have no owner, so the same check applies to every gallery.
+     *
+     * @param string|null $gallery_id The gallery to add images to, or null to create a new gallery.
+     * @return true|WP_Error
+     */
+    public static function gallery_permissions(?string $gallery_id = null): bool|WP_Error
+    {
+        global $wpmgl;
+        if ($wpmgl instanceof \Meow_MGL_Core) {
+            $allowed = (bool) $wpmgl->can_access_settings();
+        } else {
+            // Meow Gallery's own filter, applied the same way as in can_access_settings().
+            // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+            $allowed = (bool) apply_filters('mgl_allow_setup', current_user_can('manage_options'));
+        }
+
+        if (!$allowed) {
+            return new WP_Error('darkup_forbidden', __('You are not allowed to manage Meow Gallery galleries.', 'darkuploader'), ['status' => 403]);
+        }
         return true;
     }
 

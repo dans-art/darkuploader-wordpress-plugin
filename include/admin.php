@@ -117,8 +117,8 @@ function field_endpoints()
     $galleries = get_supported_galleries(false);
 
     foreach ($galleries as $key => $gallery) {
-        $adapter = $gallery['adapter'];
-        $slug = $gallery['slug'];
+        $adapter = $gallery['adapter'] ?? '';
+        $slug = $gallery['slug'] ?? '';
         if (empty($adapter) || ! method_exists($adapter, 'get_plugin_metadata')) {
             continue;
         }
@@ -275,6 +275,8 @@ function register_rest_routes()
             return current_user_can(DARKUP_CAPABILITY);
         }
     ));
+    // upload_files is only the baseline; each gallery adapter additionally checks
+    // the gallery plugin's own capabilities for creating/changing its galleries.
     register_rest_route('darkup/v1', '/media', array(
         'methods' => 'POST',
         'callback' => '\\DarkUploaderRest\upload_media',
@@ -290,6 +292,7 @@ function register_rest_routes()
             ]
         ]
     ));
+    // Users without DARKUP_SETTINGS_CAPABILITY only get their own entries, see get_logs().
     register_rest_route('darkup/v1', '/logs', array(
         'methods' => 'GET',
         'callback' => '\\DarkUploaderRest\get_logs',
