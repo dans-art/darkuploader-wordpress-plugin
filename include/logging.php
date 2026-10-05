@@ -273,34 +273,31 @@ function get_all_logs(array $args = []): array
     $per_page = $args['per_page'];
     $offset = ($page - 1) * $per_page;
 
+    // Every condition is prepared on its own, so $where only ever holds finished SQL.
+    // Do NOT esc_sql() the result, otherwise it will break the placeholders
     $where = ['1=1'];
-    $params = [];
 
     if ($args['search'] !== '') {
         // Matches the message, or the login / display name of the user who uploaded.
-        $users_table = esc_sql($wpdb->users);
-        $where[] = "(message LIKE %s OR user_id IN (SELECT ID FROM {$users_table} WHERE user_login LIKE %s OR display_name LIKE %s))";
         $like = '%' . $wpdb->esc_like($args['search']) . '%';
-        array_push($params, $like, $like, $like);
+        $where[] = $wpdb->prepare(
+            '(message LIKE %s OR user_id IN (SELECT ID FROM %i WHERE user_login LIKE %s OR display_name LIKE %s))',
+            $like,
+            $wpdb->users,
+            $like,
+            $like
+        );
     }
     if ($args['gallery'] !== '') {
-        $where[] = 'gallery = %s';
-        $params[] = $args['gallery'];
+        $where[] = $wpdb->prepare('gallery = %s', $args['gallery']);
     }
     if ($args['user_id'] > 0) {
-        $where[] = 'user_id = %d';
-        $params[] = $args['user_id'];
+        $where[] = $wpdb->prepare('user_id = %d', $args['user_id']);
     }
     if ($args['date'] !== '') {
-        $where[] = 'DATE(created_at) = %s';
-        $params[] = $args['date'];
+        $where[] = $wpdb->prepare('DATE(created_at) = %s', $args['date']);
     }
 
-    // $where is built entirely from the hardcoded fragments above (never raw user input);
-    // the real values are parameterized separately via $params/$items_params below.
-    // Do NOT esc_sql() this: it turns every % into wpdb's placeholder-escape hash, so
-    // prepare() would no longer see the %s/%d placeholders and the values would shift
-    // into LIMIT/OFFSET instead.
     $where_sql = implode(' AND ', $where);
 
     $sortable_columns = [
@@ -312,16 +309,14 @@ function get_all_logs(array $args = []): array
     $order = esc_sql($args['order'] === 'asc' ? 'ASC' : 'DESC');
 
     // Custom plugin table, not a WP core table with a cache group.
-    // Without any filter there is no placeholder, and wpdb::prepare() would complain about that.
-    $count_sql = "SELECT COUNT(*) FROM {$table} WHERE {$where_sql}";
-    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-    $total = (int) $wpdb->get_var($params ? $wpdb->prepare($count_sql, $params) : $count_sql);
+    // $table and $where_sql are already escaped / prepared above.
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    $total = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE {$where_sql}");
 
-    $items_params = array_merge($params, [$per_page, $offset]);
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     $items = $wpdb->get_results(
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-        $wpdb->prepare("SELECT * FROM {$table} WHERE {$where_sql} ORDER BY {$orderby_column} {$order} LIMIT %d OFFSET %d", $items_params),
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $wpdb->prepare("SELECT * FROM {$table} WHERE {$where_sql} ORDER BY {$orderby_column} {$order} LIMIT %d OFFSET %d", $per_page, $offset),
         ARRAY_A
     );
     return [
