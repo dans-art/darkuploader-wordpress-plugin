@@ -226,13 +226,19 @@ function sanitize_log_query_args(array $args): array
     $orderby = in_array($raw['orderby'], ['message_type', 'gallery', 'date'], true) ? $raw['orderby'] : 'date';
     $order = strtolower($raw['order']) === 'asc' ? 'asc' : 'desc';
 
+    // falls back to the default if there is not a valid number
+    // The page cap keeps ($page - 1) * $per_page far away from an integer overflow.
+    $user_id = filter_var($raw['user_id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    $page = filter_var($raw['page'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 1000000]]);
+    $per_page = filter_var($raw['per_page'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
     return [
         'search' => sanitize_text_field($raw['search']),
         'gallery' => sanitize_key($raw['gallery']),
-        'user_id' => absint($raw['user_id']),
+        'user_id' => $user_id !== false ? $user_id : 0,
         'date' => $date,
-        'page' => max(1, absint($raw['page'])),
-        'per_page' => min(100, absint($raw['per_page']) ?: 20),
+        'page' => $page !== false ? $page : 1,
+        'per_page' => $per_page !== false ? min(100, $per_page) : 20,
         'orderby' => $orderby,
         'order' => $order,
     ];
@@ -244,7 +250,7 @@ function sanitize_log_query_args(array $args): array
  * paging info to render "Page X of Y".
  *
  * @param array $args {
- *     @type string $search   Optional. Matches against the message.
+ *     @type string $search   Optional. Matches against the message and the uploader's login / display name.
  *     @type string $gallery  Optional. Restrict to one gallery slug.
  *     @type int    $user_id  Optional. Restrict to one user.
  *     @type string $date     Optional. Restrict to entries logged on this Y-m-d day.
@@ -271,8 +277,11 @@ function get_all_logs(array $args = []): array
     $params = [];
 
     if ($args['search'] !== '') {
-        $where[] = 'message LIKE %s';
-        $params[] = '%' . $wpdb->esc_like($args['search']) . '%';
+        // Matches the message, or the login / display name of the user who uploaded.
+        $users_table = esc_sql($wpdb->users);
+        $where[] = "(message LIKE %s OR user_id IN (SELECT ID FROM {$users_table} WHERE user_login LIKE %s OR display_name LIKE %s))";
+        $like = '%' . $wpdb->esc_like($args['search']) . '%';
+        array_push($params, $like, $like, $like);
     }
     if ($args['gallery'] !== '') {
         $where[] = 'gallery = %s';
@@ -302,9 +311,7 @@ function get_all_logs(array $args = []): array
     $orderby_column = esc_sql($sortable_columns[$args['orderby']] ?? 'created_at');
     $order = esc_sql($args['order'] === 'asc' ? 'ASC' : 'DESC');
 
-
-    // hardcoded whitelists — none of the interpolated parts are raw user input.
-    //Custom plugin table, not a WP core table with a cache group.
+    // Custom plugin table, not a WP core table with a cache group.
     // Without any filter there is no placeholder, and wpdb::prepare() would complain about that.
     $count_sql = "SELECT COUNT(*) FROM {$table} WHERE {$where_sql}";
     // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
