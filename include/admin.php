@@ -25,10 +25,7 @@ function admin_init()
         if ($hook !== 'media_page_darkuploader') {
             return;
         }
-        // Read-only tab navigation, not a state-changing action — no nonce to verify.
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'general';
-        if ($active_tab !== 'stats-history') {
+        if (get_active_tab() !== 'stats-history') {
             return;
         }
 
@@ -49,6 +46,7 @@ function admin_init()
             $asset['version'],
             true
         );
+        wp_set_script_translations('darkup-history', 'darkuploader', DARKUP_PLUGIN_DIR . '/languages');
         wp_enqueue_style('wp-components');
         // DataViews' own stylesheet, copied alongside the JS by webpack.config.js's
         wp_enqueue_style(
@@ -61,16 +59,12 @@ function admin_init()
 }
 
 /**
- * Registers the darkup_settings option with the Settings API and lets
- * anyone with DARKUP_CAPABILITY (not just manage_options) save it — by
- * default options.php requires manage_options for every settings group.
+ * Registers the darkup_settings option with the Settings API. Saving goes
+ * through options.php, which requires DARKUP_SETTINGS_CAPABILITY
+ * (manage_options) for every settings group.
  */
 function register_settings()
 {
-    add_filter('option_page_capability_' . DARKUP_SETTINGS_GROUP, function () {
-        return DARKUP_CAPABILITY;
-    });
-
     register_setting(DARKUP_SETTINGS_GROUP, DARKUP_SETTINGS_OPTION, [
         'type' => 'array',
         'sanitize_callback' => '\\DarkUploaderAdmin\sanitize_settings',
@@ -123,8 +117,8 @@ function field_endpoints()
     $galleries = get_supported_galleries(false);
 
     foreach ($galleries as $key => $gallery) {
-        $adapter = $gallery['adapter'];
-        $slug = $gallery['slug'];
+        $adapter = $gallery['adapter'] ?? '';
+        $slug = $gallery['slug'] ?? '';
         if (empty($adapter) || ! method_exists($adapter, 'get_plugin_metadata')) {
             continue;
         }
@@ -138,7 +132,7 @@ function field_endpoints()
 
         $disabled = ($active_plugin) ? '' : 'disabled';
         /* translators: %s: name of the gallery plugin that is not installed or activated */
-        $hint = ($active_plugin) ? '' : sprintf(esc_html__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkuploader'), esc_html($name));
+        $hint = ($active_plugin) ? '' : sprintf(__('The plugin %s is not installed or activated. Install the Plugin in order to use it', 'darkuploader'), $name);
         printf(
             '<fieldset><label><input class="%6$s" type="checkbox" name="%1$s[endpoints][%4$s]" value="1" %6$s %2$s /> %3$s</label><p class="description">%5$s</p></fieldset>',
             esc_attr(DARKUP_SETTINGS_OPTION),
@@ -204,7 +198,7 @@ function field_logs()
         '30days' => __('30 days', 'darkuploader'),
         '7days' => __('7 days', 'darkuploader'),
         'forever' => __('Forever', 'darkuploader'),
-        'no' => __('No logging (Existing logs will be deleted', 'darkuploader'),
+        'no' => __('No logging (Existing logs will be deleted)', 'darkuploader'),
     ];
 
     $options_html = array_map(function ($key) use ($options, $saved_setting) {
@@ -281,6 +275,8 @@ function register_rest_routes()
             return current_user_can(DARKUP_CAPABILITY);
         }
     ));
+    // upload_files is only the baseline; each gallery adapter additionally checks
+    // the gallery plugin's own capabilities for creating/changing its galleries.
     register_rest_route('darkup/v1', '/media', array(
         'methods' => 'POST',
         'callback' => '\\DarkUploaderRest\upload_media',
@@ -296,6 +292,7 @@ function register_rest_routes()
             ]
         ]
     ));
+    // Users without DARKUP_SETTINGS_CAPABILITY only get their own entries, see get_logs().
     register_rest_route('darkup/v1', '/logs', array(
         'methods' => 'GET',
         'callback' => '\\DarkUploaderRest\get_logs',
@@ -358,6 +355,37 @@ function register_menu()
 }
 
 /**
+ * Returns the tabs of the DarkUploader screen the current user may see.
+ * The General (settings) tab is limited to DARKUP_SETTINGS_CAPABILITY;
+ * everyone with DARKUP_CAPABILITY can read the statistics and history.
+ *
+ * @return array<string, string> Tab slug => label.
+ */
+function get_tabs(): array
+{
+    $tabs = [];
+    if (current_user_can(DARKUP_SETTINGS_CAPABILITY)) {
+        $tabs['general'] = __('General', 'darkuploader');
+    }
+    $tabs['stats-history'] = __('Statistics & History', 'darkuploader');
+    $tabs['help'] = __('Help', 'darkuploader');
+    return $tabs;
+}
+
+/**
+ * Returns the requested tab, whitelisted against get_tabs(), falling back
+ * to the first tab the current user may see.
+ */
+function get_active_tab(): string
+{
+    $tabs = get_tabs();
+    // Read-only tab navigation, not a state-changing action — no nonce to verify.
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    $requested_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : '';
+    return array_key_exists($requested_tab, $tabs) ? $requested_tab : array_key_first($tabs);
+}
+
+/**
  * Renders the DarkUploader settings screen: a tab bar plus the active tab's
  * template from include/views/. The active tab is whitelisted against
  * $tabs before being used to build the view's file path.
@@ -366,16 +394,8 @@ function render_menu()
 {
     if (! current_user_can(DARKUP_CAPABILITY)) return;
 
-    $tabs = [
-        'general'   => __('General', 'darkuploader'),
-        'stats-history' => __('Statistics & History', 'darkuploader'),
-        'help'  => __('Help', 'darkuploader'),
-    ];
-
-    // Read-only tab navigation, not a state-changing action — no nonce to verify.
-    // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-    $requested_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : '';
-    $active_tab = array_key_exists($requested_tab, $tabs) ? $requested_tab : 'general';
+    $tabs = get_tabs();
+    $active_tab = get_active_tab();
 
     require DARKUP_PLUGIN_DIR . '/include/views/admin-page.php';
 }
@@ -429,19 +449,67 @@ function get_supported_galleries(bool $only_active = true): array
 }
 
 /**
- * Runs on plugin activation: creates the log table and schedules the
- * daily cleanup cron.
+ * Runs $callback once for the current site, or for every site of the
+ * network when the plugin is (de)activated network-wide.
+ *
+ * @param bool     $network_wide Whether the plugin is (de)activated for the whole network.
+ * @param callable $callback     Called with no arguments in the context of each site.
  */
-function on_plugin_activation()
+function for_each_site(bool $network_wide, callable $callback): void
+{
+    if (! is_multisite() || ! $network_wide) {
+        $callback();
+        return;
+    }
+    foreach (get_sites(['fields' => 'ids', 'number' => 0]) as $site_id) {
+        switch_to_blog($site_id);
+        $callback();
+        restore_current_blog();
+    }
+}
+
+/**
+ * Sets up a single site: creates the log table and schedules the daily cleanup cron.
+ */
+function setup_site(): void
 {
     \DarkUploaderLogging\create_log_table();
     \DarkUploaderLogging\add_cron();
 }
 
 /**
- * Runs on plugin deactivation: unschedules the daily cleanup cron.
+ * Runs on plugin activation: sets up the current site, or every site when
+ * network-activated.
+ *
+ * @param bool $network_wide
  */
-function on_plugin_deactivation()
+function on_plugin_activation($network_wide = false)
 {
-    \DarkUploaderLogging\remove_cron();
+    for_each_site((bool) $network_wide, '\\DarkUploaderAdmin\\setup_site');
+}
+
+/**
+ * Runs on plugin deactivation: unschedules the daily cleanup cron on the
+ * current site, or on every site when network-deactivated.
+ *
+ * @param bool $network_wide
+ */
+function on_plugin_deactivation($network_wide = false)
+{
+    for_each_site((bool) $network_wide, '\\DarkUploaderLogging\\remove_cron');
+}
+
+/**
+ * Sets up sites created after the plugin got network-activated.
+ *
+ * @param \WP_Site $new_site
+ */
+function on_site_initialized(\WP_Site $new_site)
+{
+    if (! is_plugin_active_for_network(DARKUP_PLUGIN_BASENAME)) {
+        return;
+    }
+    switch_to_blog($new_site->blog_id);
+    setup_site();
+    restore_current_blog();
 }

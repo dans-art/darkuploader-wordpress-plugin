@@ -28,6 +28,16 @@ interface DarkUploader_Gallery_Adapter
      * @return bool|\WP_Error
      */
     public static function upload_image($file, array $metadata, string $batch_id = ''): bool|\WP_Error;
+
+    /**
+     * Checks the gallery plugin's own capabilities for the current user, since
+     * the REST route itself only requires DARKUP_CAPABILITY (upload_files).
+     * Called by upload_image() before anything gets written.
+     *
+     * @param string|null $gallery_id The gallery to add images to, or null to create a new gallery.
+     * @return true|\WP_Error WP_Error with status 403 when not allowed.
+     */
+    public static function gallery_permissions(?string $gallery_id = null): bool|\WP_Error;
 }
 
 /**

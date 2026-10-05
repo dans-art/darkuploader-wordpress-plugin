@@ -20,12 +20,13 @@ function get_info(\WP_REST_Request $request)
     $galls = DarkUploaderAdmin\get_supported_galleries();
     $info = [];
     foreach ($galls as $slug => $gallery) {
-        if ($slug !== 'media-library') {
-            if (empty($gallery['adapter']) || ! \is_plugin_active($gallery['slug'])) {
-                continue;
-            }
+        $adapter = $gallery['adapter'] ?? '';
+        if (empty($adapter)) {
+            continue;
         }
-        $adapter = $gallery['adapter'];
+        if ($slug !== 'media-library' && ! \is_plugin_active($gallery['slug'] ?? '')) {
+            continue;
+        }
         $info[$slug] = $adapter::get_plugin_metadata();
     }
     return new WP_REST_Response($info, 200);
@@ -49,16 +50,16 @@ function upload_media(WP_REST_Request $request)
     $file = $files['file'] ?? null;
 
     if (!$file) {
-        return new WP_Error('no_file', esc_html(__('No file uploaded.', 'darkuploader')), ['status' => 400]);
+        return new WP_Error('no_file', __('No file uploaded.', 'darkuploader'), ['status' => 400]);
     }
 
     $max_upload_size = DarkUploaderAdmin\get_max_upload_size();
-    if ((int) $file['size'] > $max_upload_size) {
-        $message = esc_html(sprintf(
+    if ((int) ($file['size'] ?? 0) > $max_upload_size) {
+        $message = sprintf(
             /* translators: %s: maximum upload size in MB */
             __('The uploaded file exceeds the maximum allowed size of %s MB.', 'darkuploader'),
             round($max_upload_size / (1024 * 1024), 2)
-        ));
+        );
         \DarkUploaderLogging\add_error_log($message, $target);
         return new WP_Error(
             'file_too_large',
@@ -72,12 +73,10 @@ function upload_media(WP_REST_Request $request)
     $galls = DarkUploaderAdmin\get_supported_galleries();
     $gallery = $galls[$target] ?? null;
 
-    if ($target !== 'media-library') {
-        if (! $gallery || empty($gallery['adapter']) || !\is_plugin_active($gallery['slug'])) {
-            $message_iv_target = esc_html(__('Target gallery not found or not supported.', 'darkuploader'));
-            \DarkUploaderLogging\add_error_log($message_iv_target, $target);
-            return new WP_Error('invalid_target', $message_iv_target, ['status' => 400]);
-        }
+    if (! is_target_available($target, $gallery)) {
+        $message_iv_target = __('Target gallery not found or not supported.', 'darkuploader');
+        \DarkUploaderLogging\add_error_log($message_iv_target, $target);
+        return new WP_Error('invalid_target', $message_iv_target, ['status' => 400]);
     }
 
     $adapter = $gallery['adapter'];
@@ -86,7 +85,32 @@ function upload_media(WP_REST_Request $request)
         \DarkUploaderLogging\add_error_log($upload_image_response->get_error_message(), $target);
         return $upload_image_response;
     }
-    return new WP_REST_Response(esc_html(__('Image uploaded to gallery', 'darkuploader')), 200);
+    return new WP_REST_Response(__('Image uploaded to gallery', 'darkuploader'), 200);
+}
+
+/**
+ * Checks whether images can be uploaded to the given target.
+ *
+ * @param string     $target  Target slug from the request, e.g. 'media-library' or 'nextgen-gallery'.
+ * @param array|null $gallery The target's entry from get_supported_galleries(), or null if it isn't in there.
+ * @return bool
+ */
+function is_target_available(string $target, ?array $gallery): bool
+{
+    // Unknown target, or disabled in the "Supported endpoints" setting — this
+    // includes the Media Library (get_supported_galleries() only returns the enabled ones).
+    if (empty($gallery['adapter'])) {
+        return false;
+    }
+
+    // The Media Library is enabled (checked above) and part of WordPress,
+    // so there is no gallery plugin to check.
+    if ($target === 'media-library') {
+        return true;
+    }
+
+    // The gallery plugin itself must be active.
+    return \is_plugin_active($gallery['slug'] ?? '');
 }
 
 /**
@@ -97,10 +121,14 @@ function upload_media(WP_REST_Request $request)
  */
 function get_logs(WP_REST_Request $request)
 {
+    // Only users who can manage the plugin see everyone's uploads; everyone else
+    // is limited to their own, whatever user_id they ask for.
+    $user_id = current_user_can(DARKUP_SETTINGS_CAPABILITY) ? $request->get_param('user_id') : get_current_user_id();
+
     $result = \DarkUploaderLogging\get_all_logs([
         'search' => $request->get_param('search'),
         'gallery' => $request->get_param('gallery'),
-        'user_id' => $request->get_param('user_id'),
+        'user_id' => $user_id,
         'date' => $request->get_param('date'),
         'page' => $request->get_param('page'),
         'per_page' => $request->get_param('per_page'),
