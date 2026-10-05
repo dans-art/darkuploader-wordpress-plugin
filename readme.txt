@@ -84,6 +84,9 @@ Open an issue on the [DarkUploader support forum on GitHub](https://github.com/d
 * Added stricter permission checks. Logs and Statistics are only shown to the current user (except admin)
 * Added Adapter specific permission check to respect the gallery plugin's permission requirements
 * Refactored code
+* Fixed: Log search and log filter by user did not work
+* Improved: Validation and santation of log parameters
+* Fixed: Encoding of special characters in the log
 
 = 0.5.4 - 2026-09-26 =
 * Fixed: Fatal Error when activated on PHP 7.4. Bumped to PHP 8.0

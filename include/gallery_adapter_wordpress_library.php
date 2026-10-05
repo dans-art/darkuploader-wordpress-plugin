@@ -107,7 +107,7 @@ class DarkUploader_WP_Library_Adapter implements DarkUploader_Gallery_Adapter
         //headers (see LOGGED_HEADERS in logging.php) into postmeta on its own.
         \DarkUploaderLogging\add_log(
             /* translators: %s: title or filename of the uploaded image */
-            sprintf(__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id)),
+            sprintf(__('Image %s uploaded', 'darkuploader'), get_post_field('post_title', $attachment_id, 'raw')),
             self::get_plugin_metadata()['slug'] ?? 'undefined',
             null,
             $attachment_id

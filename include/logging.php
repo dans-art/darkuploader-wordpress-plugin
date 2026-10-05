@@ -199,6 +199,46 @@ function add_error_log(string $message, string $gallery)
 }
 
 /**
+ * Sanitizes and validates the arguments of get_all_logs(), which may come straight
+ * from a request. Every key is always present and typed; a value that is not a
+ * scalar or fails validation falls back to its default ('' / 0 = no filter).
+ *
+ * @param array $args Raw arguments, see get_all_logs().
+ * @return array{search: string, gallery: string, user_id: int, date: string, page: int, per_page: int, orderby: string, order: string}
+ */
+function sanitize_log_query_args(array $args): array
+{
+    $raw = [];
+    $allowed_keys = ['search', 'gallery', 'user_id', 'date', 'page', 'per_page', 'orderby', 'order'];
+    foreach ($allowed_keys as $key) {
+        $raw[$key] = isset($args[$key]) && is_scalar($args[$key]) ? trim((string) $args[$key]) : '';
+    }
+
+    // Only a real calendar day in Y-m-d format.
+    $date = '';
+    if (
+        preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $raw['date'], $date_parts) === 1
+        && checkdate((int) $date_parts[2], (int) $date_parts[3], (int) $date_parts[1])
+    ) {
+        $date = $raw['date'];
+    }
+
+    $orderby = in_array($raw['orderby'], ['message_type', 'gallery', 'date'], true) ? $raw['orderby'] : 'date';
+    $order = strtolower($raw['order']) === 'asc' ? 'asc' : 'desc';
+
+    return [
+        'search' => sanitize_text_field($raw['search']),
+        'gallery' => sanitize_key($raw['gallery']),
+        'user_id' => absint($raw['user_id']),
+        'date' => $date,
+        'page' => max(1, absint($raw['page'])),
+        'per_page' => min(100, absint($raw['per_page']) ?: 20),
+        'orderby' => $orderby,
+        'order' => $order,
+    ];
+}
+
+/**
  * Retrieves log entries (getter), with optional search/filtering and pagination.
  * Shaped for the History tab's DataViews UI: a page of rows plus enough
  * paging info to render "Page X of Y".
@@ -220,45 +260,47 @@ function get_all_logs(array $args = []): array
     global $wpdb;
     $table = esc_sql(get_log_table_name());
 
-    $page = max(1, (int) ($args['page'] ?? 1));
-    $per_page = min(100, max(1, (int) ($args['per_page'] ?? 20)));
+    // $args may come straight from a request: only use the sanitized/validated copy below.
+    $args = sanitize_log_query_args($args);
+
+    $page = $args['page'];
+    $per_page = $args['per_page'];
     $offset = ($page - 1) * $per_page;
 
     $where = ['1=1'];
     $params = [];
 
-    if (! empty($args['search'])) {
+    if ($args['search'] !== '') {
         $where[] = 'message LIKE %s';
         $params[] = '%' . $wpdb->esc_like($args['search']) . '%';
     }
-    if (! empty($args['gallery'])) {
+    if ($args['gallery'] !== '') {
         $where[] = 'gallery = %s';
-        $params[] = sanitize_key($args['gallery']);
+        $params[] = $args['gallery'];
     }
-    if (! empty($args['user_id'])) {
+    if ($args['user_id'] > 0) {
         $where[] = 'user_id = %d';
-        $params[] = (int) $args['user_id'];
+        $params[] = $args['user_id'];
     }
-    if (! empty($args['date'])) {
+    if ($args['date'] !== '') {
         $where[] = 'DATE(created_at) = %s';
         $params[] = $args['date'];
     }
 
     // $where is built entirely from the hardcoded fragments above (never raw user input);
-    // esc_sql() here just satisfies static analysis, since the real values are parameterized
-    // separately via $params/$items_params below.
-    $where_sql = esc_sql(implode(' AND ', $where));
+    // the real values are parameterized separately via $params/$items_params below.
+    // Do NOT esc_sql() this: it turns every % into wpdb's placeholder-escape hash, so
+    // prepare() would no longer see the %s/%d placeholders and the values would shift
+    // into LIMIT/OFFSET instead.
+    $where_sql = implode(' AND ', $where);
 
     $sortable_columns = [
         'message_type' => 'message_type',
         'gallery' => 'gallery',
         'date' => 'created_at',
     ];
-    $orderby_key = $args['orderby'] ?? 'date';
-    $orderby_column = esc_sql($sortable_columns[$orderby_key] ?? 'created_at');
-
-    $is_ascending = isset($args['order']) && strtolower((string) $args['order']) === 'asc';
-    $order = esc_sql($is_ascending ? 'ASC' : 'DESC');
+    $orderby_column = esc_sql($sortable_columns[$args['orderby']] ?? 'created_at');
+    $order = esc_sql($args['order'] === 'asc' ? 'ASC' : 'DESC');
 
 
     // hardcoded whitelists — none of the interpolated parts are raw user input.
@@ -275,7 +317,6 @@ function get_all_logs(array $args = []): array
         $wpdb->prepare("SELECT * FROM {$table} WHERE {$where_sql} ORDER BY {$orderby_column} {$order} LIMIT %d OFFSET %d", $items_params),
         ARRAY_A
     );
-
     return [
         'items' => $items ?: [],
         'total' => $total,

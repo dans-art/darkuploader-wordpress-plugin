@@ -293,7 +293,7 @@ class DarkUploader_FooGallery_Adapter implements DarkUploader_Gallery_Adapter
         //Log the event
         $slug = self::get_plugin_metadata()['slug'] ?? 'undefined';
         /* translators: %s: title or filename of the uploaded image */
-        $message = sprintf(__('Image %s uploaded', 'darkuploader'), get_the_title($attachment_id));
+        $message = sprintf(__('Image %s uploaded', 'darkuploader'), get_post_field('post_title', $attachment_id, 'raw'));
         \DarkUploaderLogging\add_log($message, $slug, null, $attachment_id);
         \DarkUploaderLogging\update_statistic($slug);
 
